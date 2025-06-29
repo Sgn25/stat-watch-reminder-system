@@ -1,8 +1,12 @@
 
 import React from 'react';
-import { LayoutDashboard, FileText, Bell, User, Calendar } from 'lucide-react';
+import { LayoutDashboard, FileText, Bell, User, Calendar, LogOut } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
+import { Button } from '@/components/ui/button';
 
 export const Sidebar = () => {
+  const { signOut } = useAuth();
+
   const navigationItems = [
     { name: 'Dashboard', icon: LayoutDashboard, current: true },
     { name: 'Parameters', icon: FileText, current: false },
@@ -42,6 +46,16 @@ export const Sidebar = () => {
                   </li>
                 ))}
               </ul>
+            </li>
+            <li className="mt-auto">
+              <Button
+                variant="ghost"
+                onClick={signOut}
+                className="w-full justify-start text-gray-700 hover:text-red-600 hover:bg-red-50"
+              >
+                <LogOut className="h-6 w-6 shrink-0 mr-3" />
+                Sign Out
+              </Button>
             </li>
           </ul>
         </nav>

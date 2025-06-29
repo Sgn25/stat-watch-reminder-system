@@ -1,13 +1,17 @@
 
 import React from 'react';
-import { Calendar, AlertTriangle, CheckCircle, XCircle } from 'lucide-react';
-import { StatutoryParameter } from '@/pages/Index';
+import { Calendar, AlertTriangle, CheckCircle, XCircle, Edit, Trash2 } from 'lucide-react';
+import { StatutoryParameter } from '@/hooks/useStatutoryParameters';
+import { Button } from '@/components/ui/button';
+import { useStatutoryParameters } from '@/hooks/useStatutoryParameters';
 
 interface ParameterCardProps {
   parameter: StatutoryParameter;
 }
 
 export const ParameterCard = ({ parameter }: ParameterCardProps) => {
+  const { deleteParameter, isDeletingParameter } = useStatutoryParameters();
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'valid': return 'text-green-600 bg-green-50 border-green-200';
@@ -35,17 +39,25 @@ export const ParameterCard = ({ parameter }: ParameterCardProps) => {
     }
   };
 
+  const handleDelete = () => {
+    if (window.confirm('Are you sure you want to delete this parameter?')) {
+      deleteParameter(parameter.id);
+    }
+  };
+
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow">
+    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-all duration-200 hover:scale-[1.02]">
       <div className="flex items-start justify-between mb-4">
         <div>
           <h3 className="text-lg font-semibold text-gray-900">{parameter.name}</h3>
           <p className="text-sm text-gray-600">{parameter.category}</p>
         </div>
-        <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(parameter.status)}`}>
-          {getStatusIcon(parameter.status)}
-          {parameter.status.charAt(0).toUpperCase() + parameter.status.slice(1)}
-        </span>
+        <div className="flex items-center gap-2">
+          <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(parameter.status)}`}>
+            {getStatusIcon(parameter.status)}
+            {parameter.status.charAt(0).toUpperCase() + parameter.status.slice(1)}
+          </span>
+        </div>
       </div>
 
       {parameter.description && (
@@ -55,11 +67,11 @@ export const ParameterCard = ({ parameter }: ParameterCardProps) => {
       <div className="space-y-2">
         <div className="flex items-center text-sm text-gray-600">
           <Calendar className="w-4 h-4 mr-2" />
-          <span>Issued: {parameter.issueDate.toLocaleDateString()}</span>
+          <span>Issued: {new Date(parameter.issue_date).toLocaleDateString()}</span>
         </div>
         <div className="flex items-center text-sm text-gray-600">
           <Calendar className="w-4 h-4 mr-2" />
-          <span>Expires: {parameter.expiryDate.toLocaleDateString()}</span>
+          <span>Expires: {new Date(parameter.expiry_date).toLocaleDateString()}</span>
         </div>
       </div>
 
@@ -67,6 +79,23 @@ export const ParameterCard = ({ parameter }: ParameterCardProps) => {
         <p className="text-sm font-medium">
           {getStatusText(parameter.status, parameter.daysUntilExpiry)}
         </p>
+      </div>
+
+      <div className="flex justify-end gap-2 mt-4">
+        <Button variant="outline" size="sm">
+          <Edit className="w-4 h-4 mr-1" />
+          Edit
+        </Button>
+        <Button 
+          variant="outline" 
+          size="sm" 
+          onClick={handleDelete}
+          disabled={isDeletingParameter}
+          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+        >
+          <Trash2 className="w-4 h-4 mr-1" />
+          Delete
+        </Button>
       </div>
     </div>
   );

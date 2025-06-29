@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
-import { StatutoryParameter } from '@/pages/Index';
+import { StatutoryParameter } from '@/hooks/useStatutoryParameters';
 
 interface ExpirationChartProps {
   parameters: StatutoryParameter[];

@@ -5,33 +5,35 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { StatutoryParameter } from '@/pages/Index';
+import { useStatutoryParameters } from '@/hooks/useStatutoryParameters';
 
 interface AddParameterFormProps {
-  onAdd: (parameter: Omit<StatutoryParameter, 'id' | 'daysUntilExpiry' | 'status'>) => void;
-  categories: string[];
+  onClose?: () => void;
 }
 
-export const AddParameterForm = ({ onAdd, categories }: AddParameterFormProps) => {
+export const AddParameterForm = ({ onClose }: AddParameterFormProps) => {
+  const { addParameter, isAddingParameter } = useStatutoryParameters();
   const [formData, setFormData] = useState({
     name: '',
     category: '',
-    issueDate: '',
-    expiryDate: '',
+    issue_date: '',
+    expiry_date: '',
     description: ''
   });
 
+  const categories = ['License', 'Certificate', 'Permit', 'Registration', 'Compliance'];
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.name || !formData.category || !formData.issueDate || !formData.expiryDate) {
+    if (!formData.name || !formData.category || !formData.issue_date || !formData.expiry_date) {
       return;
     }
 
-    onAdd({
+    addParameter({
       name: formData.name,
       category: formData.category,
-      issueDate: new Date(formData.issueDate),
-      expiryDate: new Date(formData.expiryDate),
+      issue_date: formData.issue_date,
+      expiry_date: formData.expiry_date,
       description: formData.description
     });
 
@@ -39,10 +41,12 @@ export const AddParameterForm = ({ onAdd, categories }: AddParameterFormProps) =
     setFormData({
       name: '',
       category: '',
-      issueDate: '',
-      expiryDate: '',
+      issue_date: '',
+      expiry_date: '',
       description: ''
     });
+
+    onClose?.();
   };
 
   return (
@@ -74,22 +78,22 @@ export const AddParameterForm = ({ onAdd, categories }: AddParameterFormProps) =
 
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <Label htmlFor="issueDate">Issue Date *</Label>
+          <Label htmlFor="issue_date">Issue Date *</Label>
           <Input
-            id="issueDate"
+            id="issue_date"
             type="date"
-            value={formData.issueDate}
-            onChange={(e) => setFormData(prev => ({ ...prev, issueDate: e.target.value }))}
+            value={formData.issue_date}
+            onChange={(e) => setFormData(prev => ({ ...prev, issue_date: e.target.value }))}
             required
           />
         </div>
         <div>
-          <Label htmlFor="expiryDate">Expiry Date *</Label>
+          <Label htmlFor="expiry_date">Expiry Date *</Label>
           <Input
-            id="expiryDate"
+            id="expiry_date"
             type="date"
-            value={formData.expiryDate}
-            onChange={(e) => setFormData(prev => ({ ...prev, expiryDate: e.target.value }))}
+            value={formData.expiry_date}
+            onChange={(e) => setFormData(prev => ({ ...prev, expiry_date: e.target.value }))}
             required
           />
         </div>
@@ -106,8 +110,8 @@ export const AddParameterForm = ({ onAdd, categories }: AddParameterFormProps) =
         />
       </div>
 
-      <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700">
-        Add Parameter
+      <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700" disabled={isAddingParameter}>
+        {isAddingParameter ? 'Adding...' : 'Add Parameter'}
       </Button>
     </form>
   );
