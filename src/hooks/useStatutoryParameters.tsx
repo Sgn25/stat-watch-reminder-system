@@ -59,6 +59,10 @@ export const useStatutoryParameters = () => {
   // Add parameter mutation
   const addParameterMutation = useMutation({
     mutationFn: async (newParam: Omit<StatutoryParameter, 'id' | 'user_id' | 'created_at' | 'updated_at' | 'status' | 'daysUntilExpiry'>) => {
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('User not authenticated');
+
       const { data, error } = await supabase
         .from('statutory_parameters')
         .insert({
@@ -67,6 +71,7 @@ export const useStatutoryParameters = () => {
           description: newParam.description,
           issue_date: newParam.issue_date,
           expiry_date: newParam.expiry_date,
+          user_id: user.id,
         })
         .select()
         .single();
