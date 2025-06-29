@@ -9,26 +9,64 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      dairy_units: {
+        Row: {
+          code: string
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
+          dairy_unit_id: string | null
           full_name: string | null
           id: string
           updated_at: string
         }
         Insert: {
           created_at?: string
+          dairy_unit_id?: string | null
           full_name?: string | null
           id: string
           updated_at?: string
         }
         Update: {
           created_at?: string
+          dairy_unit_id?: string | null
           full_name?: string | null
           id?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_dairy_unit_id_fkey"
+            columns: ["dairy_unit_id"]
+            isOneToOne: false
+            referencedRelation: "dairy_units"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       reminder_settings: {
         Row: {
@@ -61,6 +99,7 @@ export type Database = {
         Row: {
           category: string
           created_at: string
+          dairy_unit_id: string | null
           description: string | null
           expiry_date: string
           id: string
@@ -72,6 +111,7 @@ export type Database = {
         Insert: {
           category: string
           created_at?: string
+          dairy_unit_id?: string | null
           description?: string | null
           expiry_date: string
           id?: string
@@ -83,6 +123,7 @@ export type Database = {
         Update: {
           category?: string
           created_at?: string
+          dairy_unit_id?: string | null
           description?: string | null
           expiry_date?: string
           id?: string
@@ -91,7 +132,15 @@ export type Database = {
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "statutory_parameters_dairy_unit_id_fkey"
+            columns: ["dairy_unit_id"]
+            isOneToOne: false
+            referencedRelation: "dairy_units"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {

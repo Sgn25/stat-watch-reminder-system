@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useUserProfile } from '@/hooks/useUserProfile';
 
 export interface StatutoryParameter {
   id: string;
@@ -12,6 +13,7 @@ export interface StatutoryParameter {
   issue_date: string;
   expiry_date: string;
   user_id: string;
+  dairy_unit_id?: string;
   created_at: string;
   updated_at: string;
   status: 'valid' | 'warning' | 'expired';
@@ -33,14 +35,18 @@ const calculateStatus = (expiryDate: string) => {
 export const useStatutoryParameters = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { profile } = useUserProfile();
 
-  // Fetch parameters
+  // Fetch parameters for the user's dairy unit
   const { data: parameters = [], isLoading, error } = useQuery({
-    queryKey: ['statutory-parameters'],
+    queryKey: ['statutory-parameters', profile?.dairy_unit_id],
     queryFn: async () => {
+      if (!profile?.dairy_unit_id) return [];
+
       const { data, error } = await supabase
         .from('statutory_parameters')
         .select('*')
+        .eq('dairy_unit_id', profile.dairy_unit_id)
         .order('expiry_date', { ascending: true });
 
       if (error) throw error;
@@ -54,14 +60,16 @@ export const useStatutoryParameters = () => {
         };
       });
     },
+    enabled: !!profile?.dairy_unit_id,
   });
 
   // Add parameter mutation
   const addParameterMutation = useMutation({
-    mutationFn: async (newParam: Omit<StatutoryParameter, 'id' | 'user_id' | 'created_at' | 'updated_at' | 'status' | 'daysUntilExpiry'>) => {
+    mutationFn: async (newParam: Omit<StatutoryParameter, 'id' | 'user_id' | 'dairy_unit_id' | 'created_at' | 'updated_at' | 'status' | 'daysUntilExpiry'>) => {
       // Get current user
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
+      if (!profile?.dairy_unit_id) throw new Error('No dairy unit assigned');
 
       const { data, error } = await supabase
         .from('statutory_parameters')
@@ -72,6 +80,7 @@ export const useStatutoryParameters = () => {
           issue_date: newParam.issue_date,
           expiry_date: newParam.expiry_date,
           user_id: user.id,
+          dairy_unit_id: profile.dairy_unit_id,
         })
         .select()
         .single();
@@ -152,6 +161,8 @@ export const useStatutoryParameters = () => {
 
   // Real-time subscription
   useEffect(() => {
+    if (!profile?.dairy_unit_id) return;
+
     const channel = supabase
       .channel('statutory-parameters-changes')
       .on(
@@ -160,6 +171,7 @@ export const useStatutoryParameters = () => {
           event: '*',
           schema: 'public',
           table: 'statutory_parameters',
+          filter: `dairy_unit_id=eq.${profile.dairy_unit_id}`,
         },
         () => {
           queryClient.invalidateQueries({ queryKey: ['statutory-parameters'] });
@@ -170,7 +182,7 @@ export const useStatutoryParameters = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [queryClient]);
+  }, [queryClient, profile?.dairy_unit_id]);
 
   return {
     parameters,
