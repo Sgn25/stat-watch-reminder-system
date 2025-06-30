@@ -62,9 +62,9 @@ const Index = () => {
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
               <div className="flex items-center gap-3 mb-2">
-                <Building2 className="w-8 h-8 text-blue-400" />
+                <Building2 className="w-8 h-8 text-blue-400 animate-pulse" />
                 <h1 className="text-3xl font-bold text-white">
-                  {profile?.dairy_unit?.name || 'Dairy Management'} Dashboard
+                  StatMonitor - {profile?.dairy_unit?.name || 'Dairy Management'} Dashboard
                 </h1>
               </div>
               <p className="text-gray-400 mt-1">Monitor and manage your dairy unit's statutory parameters</p>

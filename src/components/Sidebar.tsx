@@ -5,17 +5,19 @@ import { useAuth } from '@/hooks/useAuth';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { UserInfoDisplay } from '@/components/UserInfoDisplay';
+import { NavLink } from 'react-router-dom';
 
 export const Sidebar = () => {
   const { signOut } = useAuth();
   const { profile } = useUserProfile();
 
   const navigationItems = [
-    { name: 'Dashboard', icon: LayoutDashboard, current: true },
-    { name: 'Parameters', icon: FileText, current: false },
-    { name: 'Reminders', icon: Bell, current: false },
-    { name: 'Calendar', icon: Calendar, current: false },
-    { name: 'Profile', icon: User, current: false },
+    { name: 'Dashboard', icon: LayoutDashboard, path: '/' },
+    { name: 'Parameters', icon: FileText, path: '/parameters' },
+    { name: 'Reminders', icon: Bell, path: '/reminders' },
+    { name: 'Calendar', icon: Calendar, path: '/calendar' },
+    { name: 'Profile', icon: User, path: '/profile' },
   ];
 
   return (
@@ -23,10 +25,12 @@ export const Sidebar = () => {
       <div className="flex grow flex-col gap-y-5 overflow-y-auto bg-gray-800 border-r border-gray-700 px-6 py-4">
         <div className="flex h-16 shrink-0 items-center">
           <div className="flex items-center gap-2">
-            <Building2 className="w-8 h-8 text-blue-400" />
-            <h1 className="text-xl font-bold text-white">Dairy Manager</h1>
+            <Building2 className="w-8 h-8 text-blue-400 animate-pulse" />
+            <h1 className="text-xl font-bold text-white">StatMonitor</h1>
           </div>
         </div>
+        
+        <UserInfoDisplay />
         
         {profile?.dairy_unit && (
           <div className="bg-gray-700 rounded-lg p-3 border border-gray-600">
@@ -49,22 +53,20 @@ export const Sidebar = () => {
               <ul role="list" className="-mx-2 space-y-1">
                 {navigationItems.map((item) => (
                   <li key={item.name}>
-                    <a
-                      href="#"
-                      className={`group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold transition-colors ${
-                        item.current
+                    <NavLink
+                      to={item.path}
+                      className={({ isActive }) => `group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold transition-colors ${
+                        isActive
                           ? 'bg-blue-600 text-white'
                           : 'text-gray-300 hover:text-white hover:bg-gray-700'
                       }`}
                     >
                       <item.icon
-                        className={`h-6 w-6 shrink-0 ${
-                          item.current ? 'text-white' : 'text-gray-400 group-hover:text-white'
-                        }`}
+                        className="h-6 w-6 shrink-0"
                         aria-hidden="true"
                       />
                       {item.name}
-                    </a>
+                    </NavLink>
                   </li>
                 ))}
               </ul>
