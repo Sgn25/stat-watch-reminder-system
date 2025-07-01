@@ -2,56 +2,41 @@
 import React, { useState } from 'react';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
-import { useStatutoryParameters } from '@/hooks/useStatutoryParameters';
+import { useReminders } from '@/hooks/useReminders';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Bell, Clock, Mail, Plus } from 'lucide-react';
+import { Bell, Plus } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
-import { useToast } from '@/hooks/use-toast';
+import { AddReminderForm } from '@/components/AddReminderForm';
+import { ReminderCard } from '@/components/ReminderCard';
 
 const Reminders = () => {
-  const { parameters } = useStatutoryParameters();
-  const { toast } = useToast();
+  const { reminders, isLoading } = useReminders();
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [selectedParameter, setSelectedParameter] = useState('');
-  const [reminderTime, setReminderTime] = useState('');
-  const [customMessage, setCustomMessage] = useState('');
-  const [reminders, setReminders] = useState([]);
 
-  const handleAddReminder = () => {
-    if (!selectedParameter || !reminderTime) {
-      toast({
-        title: "Error",
-        description: "Please select a parameter and time",
-        variant: "destructive",
-      });
-      return;
+  // Group reminders by parameter
+  const remindersByParameter = reminders.reduce((acc: any, reminder: any) => {
+    const parameterId = reminder.parameter_id;
+    if (!acc[parameterId]) {
+      acc[parameterId] = {
+        parameter: reminder.statutory_parameters,
+        reminders: []
+      };
     }
+    acc[parameterId].reminders.push(reminder);
+    return acc;
+  }, {});
 
-    const parameter = parameters.find(p => p.id === selectedParameter);
-    const newReminder = {
-      id: Date.now().toString(),
-      parameter: parameter,
-      time: reminderTime,
-      message: customMessage,
-      created_at: new Date().toISOString(),
-    };
-
-    setReminders([...reminders, newReminder]);
-    setIsAddDialogOpen(false);
-    setSelectedParameter('');
-    setReminderTime('');
-    setCustomMessage('');
-
-    toast({
-      title: "Success",
-      description: "Reminder set successfully",
-    });
-  };
+  if (isLoading) {
+    return (
+      <ProtectedRoute>
+        <DashboardLayout>
+          <div className="flex items-center justify-center h-64">
+            <div className="text-white">Loading reminders...</div>
+          </div>
+        </DashboardLayout>
+      </ProtectedRoute>
+    );
+  }
 
   return (
     <ProtectedRoute>
@@ -60,7 +45,7 @@ const Reminders = () => {
           <div className="flex justify-between items-center">
             <div>
               <h1 className="text-3xl font-bold text-white">Reminders</h1>
-              <p className="text-gray-400 mt-1">Set email notifications for parameter expiration</p>
+              <p className="text-gray-400 mt-1">Set custom reminder notifications for parameter expiration</p>
             </div>
             <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
               <DialogTrigger asChild>
@@ -73,56 +58,7 @@ const Reminders = () => {
                 <DialogHeader>
                   <DialogTitle className="text-white">Set New Reminder</DialogTitle>
                 </DialogHeader>
-                <div className="space-y-4">
-                  <div>
-                    <Label htmlFor="parameter" className="text-gray-300">Parameter</Label>
-                    <Select value={selectedParameter} onValueChange={setSelectedParameter}>
-                      <SelectTrigger className="bg-gray-700 border-gray-600 text-white">
-                        <SelectValue placeholder="Select parameter" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {parameters.map((param) => (
-                          <SelectItem key={param.id} value={param.id}>
-                            {param.name} - {param.category}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label htmlFor="time" className="text-gray-300">Reminder Time</Label>
-                    <Input
-                      id="time"
-                      type="time"
-                      value={reminderTime}
-                      onChange={(e) => setReminderTime(e.target.value)}
-                      className="bg-gray-700 border-gray-600 text-white"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="message" className="text-gray-300">Custom Message (Optional)</Label>
-                    <Textarea
-                      id="message"
-                      placeholder="Add a custom message for the reminder..."
-                      value={customMessage}
-                      onChange={(e) => setCustomMessage(e.target.value)}
-                      className="bg-gray-700 border-gray-600 text-white placeholder-gray-400"
-                      rows={3}
-                    />
-                  </div>
-                  <div className="flex justify-end gap-2">
-                    <Button
-                      variant="outline"
-                      onClick={() => setIsAddDialogOpen(false)}
-                      className="border-gray-600 text-gray-300 hover:bg-gray-700"
-                    >
-                      Cancel
-                    </Button>
-                    <Button onClick={handleAddReminder} className="bg-blue-600 hover:bg-blue-700">
-                      Set Reminder
-                    </Button>
-                  </div>
-                </div>
+                <AddReminderForm onClose={() => setIsAddDialogOpen(false)} />
               </DialogContent>
             </Dialog>
           </div>
@@ -134,36 +70,21 @@ const Reminders = () => {
               <p className="text-gray-400">Add your first reminder to get email notifications</p>
             </div>
           ) : (
-            <div className="grid gap-4">
-              {reminders.map((reminder) => (
-                <Card key={reminder.id} className="bg-gray-800 border-gray-700">
-                  <CardHeader>
-                    <CardTitle className="text-white flex items-center gap-2">
-                      <Bell className="w-5 h-5 text-blue-400" />
-                      {reminder.parameter.name}
-                    </CardTitle>
-                    <CardDescription className="text-gray-400">
-                      {reminder.parameter.category}
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex items-center gap-4 text-sm">
-                      <div className="flex items-center gap-1">
-                        <Clock className="w-4 h-4 text-green-400" />
-                        <span className="text-gray-300">Time: {reminder.time}</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Mail className="w-4 h-4 text-blue-400" />
-                        <span className="text-gray-300">Email notification enabled</span>
-                      </div>
-                    </div>
-                    {reminder.message && (
-                      <div className="mt-3 p-3 bg-gray-700 rounded-md">
-                        <p className="text-sm text-gray-300">{reminder.message}</p>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
+            <div className="space-y-6">
+              {Object.values(remindersByParameter).map((group: any) => (
+                <div key={group.parameter?.id} className="space-y-4">
+                  <div className="border-b border-gray-700 pb-2">
+                    <h2 className="text-xl font-semibold text-white">{group.parameter?.name}</h2>
+                    <p className="text-gray-400 text-sm">
+                      {group.parameter?.category} - {group.reminders.length} reminder(s) set
+                    </p>
+                  </div>
+                  <div className="grid gap-4">
+                    {group.reminders.map((reminder: any) => (
+                      <ReminderCard key={reminder.id} reminder={reminder} />
+                    ))}
+                  </div>
+                </div>
               ))}
             </div>
           )}

@@ -1,0 +1,98 @@
+
+import React from 'react';
+import { Bell, Calendar, Clock, Trash2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useReminders } from '@/hooks/useReminders';
+
+interface ReminderCardProps {
+  reminder: any;
+}
+
+export const ReminderCard = ({ reminder }: ReminderCardProps) => {
+  const { deleteReminder, isDeletingReminder } = useReminders();
+
+  const handleDelete = () => {
+    if (window.confirm('Are you sure you want to delete this reminder?')) {
+      deleteReminder(reminder.id);
+    }
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString();
+  };
+
+  const calculateDaysUntilReminder = () => {
+    const reminderDateTime = new Date(`${reminder.reminder_date}T${reminder.reminder_time}`);
+    const now = new Date();
+    const timeDiff = reminderDateTime.getTime() - now.getTime();
+    const daysDiff = Math.ceil(timeDiff / (1000 * 3600 * 24));
+    return daysDiff;
+  };
+
+  const daysUntilReminder = calculateDaysUntilReminder();
+  const isOverdue = daysUntilReminder < 0;
+  const isToday = daysUntilReminder === 0;
+
+  return (
+    <Card className="bg-gray-800 border-gray-700">
+      <CardHeader>
+        <CardTitle className="text-white flex items-center gap-2">
+          <Bell className={`w-5 h-5 ${isOverdue ? 'text-red-400' : isToday ? 'text-yellow-400' : 'text-blue-400'}`} />
+          {reminder.statutory_parameters?.name}
+        </CardTitle>
+        <CardDescription className="text-gray-400">
+          {reminder.statutory_parameters?.category} - Expires: {formatDate(reminder.statutory_parameters?.expiry_date)}
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-3">
+          <div className="flex items-center gap-4 text-sm">
+            <div className="flex items-center gap-1">
+              <Calendar className="w-4 h-4 text-green-400" />
+              <span className="text-gray-300">Date: {formatDate(reminder.reminder_date)}</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <Clock className="w-4 h-4 text-blue-400" />
+              <span className="text-gray-300">Time: {reminder.reminder_time}</span>
+            </div>
+          </div>
+          
+          <div className={`text-sm px-3 py-2 rounded-md ${
+            isOverdue 
+              ? 'bg-red-900/50 text-red-300 border border-red-700' 
+              : isToday 
+                ? 'bg-yellow-900/50 text-yellow-300 border border-yellow-700'
+                : 'bg-green-900/50 text-green-300 border border-green-700'
+          }`}>
+            {isOverdue 
+              ? `Overdue by ${Math.abs(daysUntilReminder)} days`
+              : isToday 
+                ? 'Due today!'
+                : `Due in ${daysUntilReminder} days`
+            }
+          </div>
+
+          {reminder.custom_message && (
+            <div className="p-3 bg-gray-700 rounded-md">
+              <p className="text-sm text-gray-300">{reminder.custom_message}</p>
+            </div>
+          )}
+
+          <div className="flex justify-end">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleDelete}
+              disabled={isDeletingReminder}
+              className="text-red-400 border-red-600 hover:bg-red-900/20"
+            >
+              <Trash2 className="w-4 h-4 mr-1" />
+              Delete
+            </Button>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
