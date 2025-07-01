@@ -100,8 +100,8 @@ export const AuthForm = () => {
               <Shield className="w-8 h-8 text-white" />
             </div>
           </div>
-          <h1 className="text-3xl font-bold text-white mb-2">Dairy Management</h1>
-          <p className="text-gray-300">Multi-unit statutory parameter management</p>
+          <h1 className="text-3xl font-bold text-white mb-2">Stat Monitor</h1>
+          <p className="text-gray-300">Monitor your Licenses/Permits/Contracts</p>
         </div>
 
         <Card className="shadow-2xl border-gray-700 bg-gray-800">
@@ -119,7 +119,7 @@ export const AuthForm = () => {
               <CardHeader>
                 <CardTitle className="text-white">Welcome back</CardTitle>
                 <CardDescription className="text-gray-400">
-                  Sign in to your dairy management account
+                  Sign in to your stat monitor account
                 </CardDescription>
               </CardHeader>
               <CardContent>

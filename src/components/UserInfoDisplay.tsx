@@ -12,18 +12,24 @@ export const UserInfoDisplay = () => {
 
   return (
     <div className="bg-gray-700 rounded-lg p-3 border border-gray-600 mb-4">
-      <div className="flex items-center gap-3 text-sm">
-        <div className="flex items-center gap-1">
-          <User className="w-4 h-4 text-blue-400" />
-          <span className="text-white font-medium">{profile.full_name || 'User'}</span>
+      <div className="space-y-2 text-sm">
+        <div className="flex items-center gap-2">
+          <User className="w-4 h-4 text-blue-400 flex-shrink-0" />
+          <span className="text-white font-medium truncate" title={profile.full_name || 'User'}>
+            {profile.full_name || 'User'}
+          </span>
         </div>
-        <div className="flex items-center gap-1">
-          <Mail className="w-4 h-4 text-green-400" />
-          <span className="text-gray-300">{user.email}</span>
+        <div className="flex items-center gap-2">
+          <Mail className="w-4 h-4 text-green-400 flex-shrink-0" />
+          <span className="text-gray-300 truncate text-xs" title={user.email}>
+            {user.email}
+          </span>
         </div>
-        <div className="flex items-center gap-1">
-          <Building2 className="w-4 h-4 text-blue-400" />
-          <span className="text-gray-300">{profile.dairy_unit?.name}</span>
+        <div className="flex items-center gap-2">
+          <Building2 className="w-4 h-4 text-blue-400 flex-shrink-0" />
+          <span className="text-gray-300 truncate text-xs" title={profile.dairy_unit?.name}>
+            {profile.dairy_unit?.name}
+          </span>
         </div>
       </div>
     </div>
