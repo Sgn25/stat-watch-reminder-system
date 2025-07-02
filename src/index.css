@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -99,7 +100,95 @@ All colors MUST be HSL.
     @apply border-border;
   }
 
+  html {
+    scroll-behavior: smooth;
+  }
+
   body {
     @apply bg-background text-foreground;
+    transition: background-color 0.3s ease, color 0.3s ease;
   }
+
+  /* Page transition styles */
+  .page-enter {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  .page-enter-active {
+    opacity: 1;
+    transform: translateY(0);
+    transition: opacity 0.3s ease-out, transform 0.3s ease-out;
+  }
+
+  .page-exit {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .page-exit-active {
+    opacity: 0;
+    transform: translateY(-20px);
+    transition: opacity 0.3s ease-out, transform 0.3s ease-out;
+  }
+
+  /* Smooth scrolling for scroll areas */
+  .smooth-scroll {
+    scroll-behavior: smooth;
+  }
+
+  /* Enhanced link transitions */
+  a {
+    transition: color 0.2s ease, opacity 0.2s ease;
+  }
+
+  /* Button and interactive element transitions */
+  button, [role="button"] {
+    transition: all 0.2s ease;
+  }
+
+  /* Card and content transitions */
+  .card, .bg-card {
+    transition: box-shadow 0.2s ease, transform 0.2s ease;
+  }
+
+  .card:hover, .bg-card:hover {
+    transform: translateY(-1px);
+  }
+}
+
+/* Custom keyframes for smooth animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Utility classes for smooth animations */
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-out;
+}
+
+.animate-slide-in {
+  animation: slideIn 0.3s ease-out;
+}
+
+.transition-smooth {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
