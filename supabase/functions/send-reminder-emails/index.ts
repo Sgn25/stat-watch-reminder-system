@@ -22,45 +22,127 @@ interface ReminderWithDetails {
   };
 }
 
-interface DairyUnitUser {
-  id: string;
-  full_name: string | null;
-  user_email?: string;
-}
-
 const supabase = createClient(
   Deno.env.get('SUPABASE_URL') ?? '',
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
 );
 
-const brevoApiKey = Deno.env.get('BREVO_API_KEY');
+// AWS SES configuration
+const AWS_ACCESS_KEY_ID = Deno.env.get('AWS_ACCESS_KEY_ID');
+const AWS_SECRET_ACCESS_KEY = Deno.env.get('AWS_SECRET_ACCESS_KEY');
+const AWS_REGION = Deno.env.get('AWS_REGION') || 'us-east-1';
 
-async function sendBrevoEmail(to: string[], subject: string, htmlContent: string, textContent: string) {
-  const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+// AWS SES API endpoint
+const SES_ENDPOINT = `https://email.${AWS_REGION}.amazonaws.com/`;
+
+// Function to create AWS signature for SES API
+async function createAwsSignature(stringToSign: string, secretKey: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    'raw',
+    encoder.encode(secretKey),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign']
+  );
+  
+  const signature = await crypto.subtle.sign('HMAC', key, encoder.encode(stringToSign));
+  return Array.from(new Uint8Array(signature))
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('');
+}
+
+async function sendSESEmail(to: string[], subject: string, htmlContent: string, textContent: string) {
+  if (!AWS_ACCESS_KEY_ID || !AWS_SECRET_ACCESS_KEY) {
+    throw new Error('AWS credentials not configured');
+  }
+
+  const timestamp = new Date().toISOString().replace(/[:\-]|\.\d{3}/g, '');
+  const date = timestamp.substr(0, 8);
+  
+  // Create the request body for SES SendEmail API
+  const emailData = {
+    Source: 'statmonitor.reminder@gmail.com',
+    Destination: {
+      ToAddresses: to
+    },
+    Message: {
+      Subject: {
+        Data: subject,
+        Charset: 'UTF-8'
+      },
+      Body: {
+        Html: {
+          Data: htmlContent,
+          Charset: 'UTF-8'
+        },
+        Text: {
+          Data: textContent,
+          Charset: 'UTF-8'
+        }
+      }
+    }
+  };
+
+  // Convert to AWS SES API format
+  const params = new URLSearchParams();
+  params.append('Action', 'SendEmail');
+  params.append('Version', '2010-12-01');
+  params.append('Source', emailData.Source);
+  
+  emailData.Destination.ToAddresses.forEach((email, index) => {
+    params.append(`Destination.ToAddresses.member.${index + 1}`, email);
+  });
+  
+  params.append('Message.Subject.Data', emailData.Message.Subject.Data);
+  params.append('Message.Subject.Charset', emailData.Message.Subject.Charset);
+  params.append('Message.Body.Html.Data', emailData.Message.Body.Html.Data);
+  params.append('Message.Body.Html.Charset', emailData.Message.Body.Html.Charset);
+  params.append('Message.Body.Text.Data', emailData.Message.Body.Text.Data);
+  params.append('Message.Body.Text.Charset', emailData.Message.Body.Text.Charset);
+
+  // Create AWS signature
+  const algorithm = 'AWS4-HMAC-SHA256';
+  const service = 'ses';
+  const host = `email.${AWS_REGION}.amazonaws.com`;
+  const canonicalUri = '/';
+  const canonicalQueryString = '';
+  const payloadHash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(params.toString()));
+  const payloadHashHex = Array.from(new Uint8Array(payloadHash)).map(b => b.toString(16).padStart(2, '0')).join('');
+  
+  const canonicalHeaders = `host:${host}\nx-amz-date:${timestamp}\n`;
+  const signedHeaders = 'host;x-amz-date';
+  const canonicalRequest = `POST\n${canonicalUri}\n${canonicalQueryString}\n${canonicalHeaders}\n${signedHeaders}\n${payloadHashHex}`;
+  
+  const credentialScope = `${date}/${AWS_REGION}/${service}/aws4_request`;
+  const stringToSign = `${algorithm}\n${timestamp}\n${credentialScope}\n${await crypto.subtle.digest('SHA-256', new TextEncoder().encode(canonicalRequest)).then(hash => Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join(''))}`;
+  
+  // Create signing key
+  const kDate = await createAwsSignature(date, `AWS4${AWS_SECRET_ACCESS_KEY}`);
+  const kRegion = await createAwsSignature(AWS_REGION, kDate);
+  const kService = await createAwsSignature(service, kRegion);
+  const kSigning = await createAwsSignature('aws4_request', kService);
+  const signature = await createAwsSignature(stringToSign, kSigning);
+  
+  const authorizationHeader = `${algorithm} Credential=${AWS_ACCESS_KEY_ID}/${credentialScope}, SignedHeaders=${signedHeaders}, Signature=${signature}`;
+
+  const response = await fetch(SES_ENDPOINT, {
     method: 'POST',
     headers: {
-      'Accept': 'application/json',
-      'Content-Type': 'application/json',
-      'Api-Key': brevoApiKey!,
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'X-Amz-Date': timestamp,
+      'Authorization': authorizationHeader,
+      'Host': host,
     },
-    body: JSON.stringify({
-      sender: {
-        name: 'Statutory Parameters Monitor',
-        email: 'statmonitor.reminder@gmail.com',
-      },
-      to: to.map(email => ({ email })),
-      subject,
-      htmlContent,
-      textContent,
-    }),
+    body: params.toString(),
   });
 
   if (!response.ok) {
-    const errorData = await response.text();
-    throw new Error(`Brevo API error: ${response.status} - ${errorData}`);
+    const errorText = await response.text();
+    throw new Error(`AWS SES API error: ${response.status} - ${errorText}`);
   }
 
-  return await response.json();
+  return await response.text();
 }
 
 function generateEmailTemplate(reminder: ReminderWithDetails, recipientName: string) {
@@ -83,7 +165,6 @@ function generateEmailTemplate(reminder: ReminderWithDetails, recipientName: str
         .warning { background: #fef3c7; border: 1px solid #f59e0b; }
         .info { background: #dbeafe; border: 1px solid #60a5fa; }
         .footer { text-align: center; padding: 20px; font-size: 12px; color: #666; }
-        .button { display: inline-block; background: #1e3a8a; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; margin: 10px 0; }
       </style>
     </head>
     <body>
@@ -115,8 +196,6 @@ function generateEmailTemplate(reminder: ReminderWithDetails, recipientName: str
           </div>` : ''}
           
           <p>Please take the necessary action to ensure compliance with this statutory requirement.</p>
-          
-          <p>If you have any questions or need assistance, please contact your administrator.</p>
           
           <p>Best regards,<br>
           Statutory Parameters Monitoring System</p>
@@ -261,9 +340,9 @@ const handler = async (req: Request): Promise<Response> => {
 
         console.log(`Sending email to ${usersWithEmails.length} users`);
 
-        // Check Gmail daily limit (500 emails per day for regular Gmail)
-        if (totalEmailsSent + usersWithEmails.length > 450) {
-          console.log('Approaching Gmail daily limit, stopping email sending');
+        // Check AWS SES daily limit (200 emails per day for sandbox)
+        if (totalEmailsSent + usersWithEmails.length > 180) {
+          console.log('Approaching AWS SES daily limit, stopping email sending');
           await logEmailActivity(reminder.id, 'failed', 'Daily email limit reached');
           break;
         }
@@ -271,8 +350,8 @@ const handler = async (req: Request): Promise<Response> => {
         // Generate email content
         const emailTemplate = generateEmailTemplate(reminder, 'Team Member');
         
-        // Send email via Brevo
-        const emailResponse = await sendBrevoEmail(
+        // Send email via AWS SES
+        const emailResponse = await sendSESEmail(
           usersWithEmails,
           emailTemplate.subject,
           emailTemplate.htmlContent,
