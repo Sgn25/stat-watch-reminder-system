@@ -29,7 +29,7 @@ export const PageTransition = ({ children }: PageTransitionProps) => {
 
   return (
     <div
-      className={`transition-smooth ${
+      className={`transition-smooth min-h-screen ${
         transitionStage === 'fadeOut' 
           ? 'opacity-0 transform translate-y-2' 
           : 'opacity-100 transform translate-y-0'

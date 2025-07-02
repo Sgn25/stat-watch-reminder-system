@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Badge } from '@/components/ui/badge';
 import { AddParameterForm } from '@/components/AddParameterForm';
 import { Loader2 } from 'lucide-react';
+import { formatDate } from '@/lib/dateUtils';
 
 const Parameters = () => {
   const { parameters, isLoading, deleteParameter } = useStatutoryParameters();
@@ -58,6 +59,7 @@ const Parameters = () => {
     <ProtectedRoute>
       <DashboardLayout>
         <div className="space-y-6">
+          {/* Header and search section */}
           <div className="flex justify-between items-center">
             <h1 className="text-3xl font-bold text-white">Parameters</h1>
             <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
@@ -104,10 +106,10 @@ const Parameters = () => {
                     <TableCell className="text-white font-medium">{parameter.name}</TableCell>
                     <TableCell className="text-gray-300">{parameter.category}</TableCell>
                     <TableCell className="text-gray-300">
-                      {new Date(parameter.issue_date).toLocaleDateString()}
+                      {formatDate(parameter.issue_date)}
                     </TableCell>
                     <TableCell className="text-gray-300">
-                      {new Date(parameter.expiry_date).toLocaleDateString()}
+                      {formatDate(parameter.expiry_date)}
                     </TableCell>
                     <TableCell>
                       <Badge className={`${getStatusColor(parameter.status)} text-white`}>
@@ -164,11 +166,11 @@ const Parameters = () => {
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <h4 className="font-medium text-gray-300">Issue Date</h4>
-                      <p className="text-white">{new Date(selectedParameter.issue_date).toLocaleDateString()}</p>
+                      <p className="text-white">{formatDate(selectedParameter.issue_date)}</p>
                     </div>
                     <div>
                       <h4 className="font-medium text-gray-300">Expiry Date</h4>
-                      <p className="text-white">{new Date(selectedParameter.expiry_date).toLocaleDateString()}</p>
+                      <p className="text-white">{formatDate(selectedParameter.expiry_date)}</p>
                     </div>
                   </div>
                   <div>

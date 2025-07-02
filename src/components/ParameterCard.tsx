@@ -1,9 +1,12 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Calendar, AlertTriangle, CheckCircle, XCircle, Edit, Trash2 } from 'lucide-react';
 import { StatutoryParameter } from '@/hooks/useStatutoryParameters';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useStatutoryParameters } from '@/hooks/useStatutoryParameters';
+import { EditParameterForm } from '@/components/EditParameterForm';
+import { formatDate } from '@/lib/dateUtils';
 
 interface ParameterCardProps {
   parameter: StatutoryParameter;
@@ -11,6 +14,7 @@ interface ParameterCardProps {
 
 export const ParameterCard = ({ parameter }: ParameterCardProps) => {
   const { deleteParameter, isDeletingParameter } = useStatutoryParameters();
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -46,57 +50,75 @@ export const ParameterCard = ({ parameter }: ParameterCardProps) => {
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-all duration-200 hover:scale-[1.02]">
-      <div className="flex items-start justify-between mb-4">
-        <div>
-          <h3 className="text-lg font-semibold text-gray-900">{parameter.name}</h3>
-          <p className="text-sm text-gray-600">{parameter.category}</p>
+    <>
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-all duration-200 hover:scale-[1.02]">
+        <div className="flex items-start justify-between mb-4">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">{parameter.name}</h3>
+            <p className="text-sm text-gray-600">{parameter.category}</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(parameter.status)}`}>
+              {getStatusIcon(parameter.status)}
+              {parameter.status.charAt(0).toUpperCase() + parameter.status.slice(1)}
+            </span>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(parameter.status)}`}>
-            {getStatusIcon(parameter.status)}
-            {parameter.status.charAt(0).toUpperCase() + parameter.status.slice(1)}
-          </span>
+
+        {parameter.description && (
+          <p className="text-sm text-gray-600 mb-4">{parameter.description}</p>
+        )}
+
+        <div className="space-y-2">
+          <div className="flex items-center text-sm text-gray-600">
+            <Calendar className="w-4 h-4 mr-2" />
+            <span>Issued: {formatDate(parameter.issue_date)}</span>
+          </div>
+          <div className="flex items-center text-sm text-gray-600">
+            <Calendar className="w-4 h-4 mr-2" />
+            <span>Expires: {formatDate(parameter.expiry_date)}</span>
+          </div>
+        </div>
+
+        <div className={`mt-4 p-3 rounded-md ${getStatusColor(parameter.status)}`}>
+          <p className="text-sm font-medium">
+            {getStatusText(parameter.status, parameter.daysUntilExpiry)}
+          </p>
+        </div>
+
+        <div className="flex justify-end gap-2 mt-4">
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={() => setIsEditDialogOpen(true)}
+          >
+            <Edit className="w-4 h-4 mr-1" />
+            Edit
+          </Button>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={handleDelete}
+            disabled={isDeletingParameter}
+            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+          >
+            <Trash2 className="w-4 h-4 mr-1" />
+            Delete
+          </Button>
         </div>
       </div>
 
-      {parameter.description && (
-        <p className="text-sm text-gray-600 mb-4">{parameter.description}</p>
-      )}
-
-      <div className="space-y-2">
-        <div className="flex items-center text-sm text-gray-600">
-          <Calendar className="w-4 h-4 mr-2" />
-          <span>Issued: {new Date(parameter.issue_date).toLocaleDateString()}</span>
-        </div>
-        <div className="flex items-center text-sm text-gray-600">
-          <Calendar className="w-4 h-4 mr-2" />
-          <span>Expires: {new Date(parameter.expiry_date).toLocaleDateString()}</span>
-        </div>
-      </div>
-
-      <div className={`mt-4 p-3 rounded-md ${getStatusColor(parameter.status)}`}>
-        <p className="text-sm font-medium">
-          {getStatusText(parameter.status, parameter.daysUntilExpiry)}
-        </p>
-      </div>
-
-      <div className="flex justify-end gap-2 mt-4">
-        <Button variant="outline" size="sm">
-          <Edit className="w-4 h-4 mr-1" />
-          Edit
-        </Button>
-        <Button 
-          variant="outline" 
-          size="sm" 
-          onClick={handleDelete}
-          disabled={isDeletingParameter}
-          className="text-red-600 hover:text-red-700 hover:bg-red-50"
-        >
-          <Trash2 className="w-4 h-4 mr-1" />
-          Delete
-        </Button>
-      </div>
-    </div>
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="sm:max-w-md bg-gray-800 border-gray-700">
+          <DialogHeader>
+            <DialogTitle className="text-white">Edit Parameter</DialogTitle>
+          </DialogHeader>
+          <EditParameterForm 
+            parameter={parameter} 
+            onClose={() => setIsEditDialogOpen(false)} 
+          />
+        </DialogContent>
+      </Dialog>
+    </>
   );
 };
