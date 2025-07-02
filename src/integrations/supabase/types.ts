@@ -36,6 +36,41 @@ export type Database = {
         }
         Relationships: []
       }
+      email_logs: {
+        Row: {
+          emails_sent: number | null
+          error_message: string | null
+          id: string
+          reminder_id: string | null
+          sent_at: string
+          status: string
+        }
+        Insert: {
+          emails_sent?: number | null
+          error_message?: string | null
+          id?: string
+          reminder_id?: string | null
+          sent_at?: string
+          status: string
+        }
+        Update: {
+          emails_sent?: number | null
+          error_message?: string | null
+          id?: string
+          reminder_id?: string | null
+          sent_at?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_logs_reminder_id_fkey"
+            columns: ["reminder_id"]
+            isOneToOne: false
+            referencedRelation: "reminders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string
