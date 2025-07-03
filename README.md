@@ -71,3 +71,14 @@ Yes, you can!
 To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
 
 Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+
+## Email Sending Configuration
+
+This project uses [Resend](https://resend.com/) for transactional email delivery.
+
+Set the following environment variables in your Supabase project or local environment:
+
+- `RESEND_API_KEY`: Your Resend API key (get it from your Resend dashboard)
+- `RESEND_FROM`: The sender email address, e.g. `Dairy Bot <noreply@yourdomain.com>` (must be a verified sender/domain in Resend)
+
+Remove any old Gmail SMTP variables (`GMAIL_USER`, `GMAIL_APP_PASS`) if present.

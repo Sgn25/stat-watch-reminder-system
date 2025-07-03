@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useStatutoryParameters } from '@/hooks/useStatutoryParameters';
 import { useReminders } from '@/hooks/useReminders';
@@ -14,6 +13,13 @@ interface EditReminderFormProps {
   onClose: () => void;
 }
 
+// Utility for display
+function toDisplayDate(isoDate: string) {
+  if (!isoDate) return '';
+  const [year, month, day] = isoDate.split('-');
+  return `${day}/${month}/${year}`;
+}
+
 export const EditReminderForm = ({ reminder, onClose }: EditReminderFormProps) => {
   const { parameters } = useStatutoryParameters();
   const { updateReminder, isUpdatingReminder } = useReminders();
@@ -23,6 +29,8 @@ export const EditReminderForm = ({ reminder, onClose }: EditReminderFormProps) =
     reminder_time: '',
     custom_message: '',
   });
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
 
   useEffect(() => {
     if (reminder) {
@@ -35,10 +43,28 @@ export const EditReminderForm = ({ reminder, onClose }: EditReminderFormProps) =
     }
   }, [reminder]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    updateReminder({ id: reminder.id, ...formData });
-    onClose();
+    setError(null);
+    setSuccess(false);
+    try {
+      await new Promise<void>((resolve, reject) => {
+        updateReminder(
+          { id: reminder.id, ...formData },
+          {
+            onSuccess: () => {
+              setSuccess(true);
+              resolve();
+              setTimeout(onClose, 500); // Close after short delay
+            },
+            onError: (err: any) => {
+              setError(err?.message || 'Failed to update reminder');
+              reject(err);
+            },
+          }
+        );
+      });
+    } catch {}
   };
 
   const handleChange = (field: string, value: string) => {
@@ -118,6 +144,8 @@ export const EditReminderForm = ({ reminder, onClose }: EditReminderFormProps) =
           Update Reminder
         </Button>
       </div>
+      {error && <div className="text-red-500 text-sm mt-2">{error}</div>}
+      {success && <div className="text-green-500 text-sm mt-2">Reminder updated!</div>}
     </form>
   );
 };

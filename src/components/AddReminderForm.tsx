@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useStatutoryParameters } from '@/hooks/useStatutoryParameters';
 import { useReminders } from '@/hooks/useReminders';
@@ -11,6 +10,13 @@ import { Loader2 } from 'lucide-react';
 
 interface AddReminderFormProps {
   onClose: () => void;
+}
+
+// Utility for display
+function toDisplayDate(isoDate: string) {
+  if (!isoDate) return '';
+  const [year, month, day] = isoDate.split('-');
+  return `${day}/${month}/${year}`;
 }
 
 export const AddReminderForm = ({ onClose }: AddReminderFormProps) => {

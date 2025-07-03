@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -69,6 +68,7 @@ export const useReminders = () => {
           reminder_date: newReminder.reminder_date,
           reminder_time: newReminder.reminder_time,
           custom_message: newReminder.custom_message,
+          is_sent: false,
         })
         .select()
         .single();

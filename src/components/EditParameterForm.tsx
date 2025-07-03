@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useStatutoryParameters, StatutoryParameter } from '@/hooks/useStatutoryParameters';
 import { Button } from '@/components/ui/button';
@@ -11,6 +10,13 @@ import { Loader2 } from 'lucide-react';
 interface EditParameterFormProps {
   parameter: StatutoryParameter;
   onClose: () => void;
+}
+
+// Utility for display
+function toDisplayDate(isoDate: string) {
+  if (!isoDate) return '';
+  const [year, month, day] = isoDate.split('-');
+  return `${day}/${month}/${year}`;
 }
 
 export const EditParameterForm = ({ parameter, onClose }: EditParameterFormProps) => {

@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
@@ -12,6 +11,13 @@ import { Badge } from '@/components/ui/badge';
 import { AddParameterForm } from '@/components/AddParameterForm';
 import { Loader2 } from 'lucide-react';
 import { formatDate } from '@/lib/dateUtils';
+
+// Utility for display
+function toDisplayDate(isoDate: string) {
+  if (!isoDate) return '';
+  const [year, month, day] = isoDate.split('-');
+  return `${day}/${month}/${year}`;
+}
 
 const Parameters = () => {
   const { parameters, isLoading, deleteParameter } = useStatutoryParameters();
@@ -106,10 +112,10 @@ const Parameters = () => {
                     <TableCell className="text-white font-medium">{parameter.name}</TableCell>
                     <TableCell className="text-gray-300">{parameter.category}</TableCell>
                     <TableCell className="text-gray-300">
-                      {formatDate(parameter.issue_date)}
+                      {toDisplayDate(parameter.issue_date)}
                     </TableCell>
                     <TableCell className="text-gray-300">
-                      {formatDate(parameter.expiry_date)}
+                      {toDisplayDate(parameter.expiry_date)}
                     </TableCell>
                     <TableCell>
                       <Badge className={`${getStatusColor(parameter.status)} text-white`}>
@@ -166,11 +172,11 @@ const Parameters = () => {
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <h4 className="font-medium text-gray-300">Issue Date</h4>
-                      <p className="text-white">{formatDate(selectedParameter.issue_date)}</p>
+                      <p className="text-white">{toDisplayDate(selectedParameter.issue_date)}</p>
                     </div>
                     <div>
                       <h4 className="font-medium text-gray-300">Expiry Date</h4>
-                      <p className="text-white">{formatDate(selectedParameter.expiry_date)}</p>
+                      <p className="text-white">{toDisplayDate(selectedParameter.expiry_date)}</p>
                     </div>
                   </div>
                   <div>

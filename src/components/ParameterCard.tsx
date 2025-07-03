@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Calendar, AlertTriangle, CheckCircle, XCircle, Edit, Trash2 } from 'lucide-react';
 import { StatutoryParameter } from '@/hooks/useStatutoryParameters';
@@ -10,6 +9,13 @@ import { formatDate } from '@/lib/dateUtils';
 
 interface ParameterCardProps {
   parameter: StatutoryParameter;
+}
+
+// Utility for display
+function toDisplayDate(isoDate: string) {
+  if (!isoDate) return '';
+  const [year, month, day] = isoDate.split('-');
+  return `${day}/${month}/${year}`;
 }
 
 export const ParameterCard = ({ parameter }: ParameterCardProps) => {
@@ -72,53 +78,12 @@ export const ParameterCard = ({ parameter }: ParameterCardProps) => {
         <div className="space-y-2">
           <div className="flex items-center text-sm text-gray-600">
             <Calendar className="w-4 h-4 mr-2" />
-            <span>Issued: {formatDate(parameter.issue_date)}</span>
+            <span>Issued: {toDisplayDate(parameter.issue_date)}</span>
           </div>
           <div className="flex items-center text-sm text-gray-600">
             <Calendar className="w-4 h-4 mr-2" />
-            <span>Expires: {formatDate(parameter.expiry_date)}</span>
+            <span>Expires: {toDisplayDate(parameter.expiry_date)}</span>
           </div>
         </div>
 
-        <div className={`mt-4 p-3 rounded-md ${getStatusColor(parameter.status)}`}>
-          <p className="text-sm font-medium">
-            {getStatusText(parameter.status, parameter.daysUntilExpiry)}
-          </p>
-        </div>
-
-        <div className="flex justify-end gap-2 mt-4">
-          <Button 
-            variant="outline" 
-            size="sm"
-            onClick={() => setIsEditDialogOpen(true)}
-          >
-            <Edit className="w-4 h-4 mr-1" />
-            Edit
-          </Button>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={handleDelete}
-            disabled={isDeletingParameter}
-            className="text-red-600 hover:text-red-700 hover:bg-red-50"
-          >
-            <Trash2 className="w-4 h-4 mr-1" />
-            Delete
-          </Button>
-        </div>
-      </div>
-
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="sm:max-w-md bg-gray-800 border-gray-700">
-          <DialogHeader>
-            <DialogTitle className="text-white">Edit Parameter</DialogTitle>
-          </DialogHeader>
-          <EditParameterForm 
-            parameter={parameter} 
-            onClose={() => setIsEditDialogOpen(false)} 
-          />
-        </DialogContent>
-      </Dialog>
-    </>
-  );
-};
+        <div className={`

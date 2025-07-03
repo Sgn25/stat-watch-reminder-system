@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.50.2';
 
@@ -27,100 +26,37 @@ const supabase = createClient(
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
 );
 
-// Gmail SMTP configuration
-const GMAIL_USER = Deno.env.get('GMAIL_USER');
-const GMAIL_APP_PASS = Deno.env.get('GMAIL_APP_PASS');
+async function sendEmailWithResend(to: string, subject: string, htmlContent: string, textContent: string) {
+  const apiKey = Deno.env.get("RESEND_API_KEY");
+  const fromEmail = Deno.env.get("RESEND_FROM");
 
-async function sendGmailEmail(to: string, subject: string, htmlContent: string, textContent: string) {
-  if (!GMAIL_USER || !GMAIL_APP_PASS) {
-    console.error('Gmail credentials not configured');
-    throw new Error('Gmail credentials not configured');
+  if (!apiKey || !fromEmail) {
+    throw new Error("Resend API key or FROM address not configured");
   }
 
-  console.log(`Attempting to send email to: ${to}`);
-  console.log(`Gmail user: ${GMAIL_USER}`);
+  const response = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from: fromEmail,
+      to,
+      subject,
+      html: htmlContent,
+      text: textContent,
+    }),
+  });
 
-  try {
-    // Use a simple SMTP implementation
-    const smtpResponse = await sendViaSMTP(to, subject, htmlContent, textContent);
-    console.log('Email sent successfully via SMTP');
-    return smtpResponse;
-  } catch (error) {
-    console.error('Failed to send email via SMTP:', error);
-    throw error;
+  const result = await response.json();
+  console.log("Resend response:", result);
+
+  if (!response.ok) {
+    throw new Error(result.error || "Failed to send email via Resend");
   }
-}
 
-async function sendViaSMTP(to: string, subject: string, htmlContent: string, textContent: string) {
-  console.log('Attempting SMTP connection to Gmail...');
-  
-  try {
-    // Create a basic email message
-    const boundary = `boundary_${Date.now()}_${Math.random().toString(36)}`;
-    const emailMessage = [
-      `From: Dairy License Reminder <${GMAIL_USER}>`,
-      `To: ${to}`,
-      `Subject: ${subject}`,
-      `MIME-Version: 1.0`,
-      `Content-Type: multipart/alternative; boundary="${boundary}"`,
-      ``,
-      `--${boundary}`,
-      `Content-Type: text/plain; charset=utf-8`,
-      ``,
-      textContent,
-      ``,
-      `--${boundary}`,
-      `Content-Type: text/html; charset=utf-8`,
-      ``,
-      htmlContent,
-      ``,
-      `--${boundary}--`
-    ].join('\r\n');
-
-    // Use Gmail API with App Password (more reliable than direct SMTP)
-    const response = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${btoa(`${GMAIL_USER}:${GMAIL_APP_PASS}`)}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        raw: btoa(emailMessage).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
-      })
-    });
-
-    if (!response.ok) {
-      // If Gmail API fails, try a different approach using nodemailer-like functionality
-      console.log('Gmail API failed, trying alternative method...');
-      
-      // For testing purposes, let's log the email content
-      console.log('=== EMAIL CONTENT ===');
-      console.log(`To: ${to}`);
-      console.log(`Subject: ${subject}`);
-      console.log(`HTML: ${htmlContent.substring(0, 200)}...`);
-      console.log('=== END EMAIL CONTENT ===');
-      
-      // Return success for now (in production, you'd want to use a proper email service)
-      return { success: true, method: 'logged' };
-    }
-
-    const result = await response.json();
-    console.log('Gmail API response:', result);
-    return { success: true, method: 'gmail-api', result };
-
-  } catch (error) {
-    console.error('SMTP send failed:', error);
-    
-    // For debugging, log the email content anyway
-    console.log('=== EMAIL CONTENT (FAILED) ===');
-    console.log(`To: ${to}`);
-    console.log(`Subject: ${subject}`);
-    console.log(`HTML: ${htmlContent.substring(0, 200)}...`);
-    console.log('=== END EMAIL CONTENT ===');
-    
-    // Instead of throwing error, return success with logged method for testing
-    return { success: true, method: 'logged-fallback' };
-  }
+  return result;
 }
 
 function generateEmailTemplate(reminder: ReminderWithDetails, recipientName: string) {
@@ -221,52 +157,87 @@ async function logEmailActivity(reminderId: string, status: 'sent' | 'failed', e
   }
 }
 
+/**
+ * Email Reminder Logic (2024-07 update):
+ *
+ * 1. Every day at 10:00 AM (app time), this function checks for:
+ *    a) All reminders expiring today (any time up to 23:59)
+ *    b) All statutory parameters expiring in the next 5 days (and not yet renewed)
+ * 2. At 11:00 AM, the function is scheduled to send all these reminders/notifications to all registered users.
+ * 3. For the test email endpoint, reminders for today are always sent, even if already sent before.
+ * 4. Parameter expiry notifications are sent daily from 5 days before expiry until renewed.
+ */
 const handler = async (req: Request): Promise<Response> => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Determine if this is a test run
+  let isTest = false;
   try {
-    console.log('Starting Gmail reminder email check...');
-    
-    // Get current date and time - using UTC and converting properly
-    const now = new Date();
-    
-    // Get current date in YYYY-MM-DD format (database stores dates in this format)
-    const currentDate = now.toISOString().split('T')[0];
-    
-    // Get current time in HH:MM format - add some buffer time (10 minutes)
-    const bufferTime = new Date(now.getTime() + 10 * 60 * 1000); // Add 10 minutes buffer
-    const currentTime = bufferTime.toTimeString().split(' ')[0].substring(0, 5);
-    
-    console.log(`Checking for reminders due on ${currentDate} at or before ${currentTime}`);
-    console.log(`Current UTC time: ${now.toISOString()}`);
-    console.log(`Buffer time used: ${bufferTime.toTimeString().split(' ')[0].substring(0, 5)}`);
-    
-    // Fetch due reminders that haven't been sent
-    // Using broader time range to account for timezone differences
-    const { data: dueReminders, error: remindersError } = await supabase
-      .from('reminders')
-      .select(`
-        *,
-        statutory_parameters (
-          name,
-          category,
-          expiry_date,
-          description
-        )
-      `)
-      .eq('reminder_date', currentDate)
-      .lte('reminder_time', currentTime)
-      .eq('is_sent', false);
+    const body = await req.json().catch(() => ({}));
+    isTest = body && body.source === 'manual-test';
+  } catch {}
 
+  try {
+    console.log('Starting Resend reminder email check...');
+    const now = new Date();
+    const currentDate = now.toISOString().split('T')[0];
+
+    // Auto-delete reminders whose parameter has expired
+    const { data: expiredReminders, error: expiredError } = await supabase
+      .from('reminders')
+      .select('id, parameter_id')
+      .neq('parameter_id', null);
+    if (!expiredError && expiredReminders && expiredReminders.length > 0) {
+      for (const reminder of expiredReminders) {
+        // Get the parameter's expiry_date
+        const { data: param, error: paramError } = await supabase
+          .from('statutory_parameters')
+          .select('expiry_date')
+          .eq('id', reminder.parameter_id)
+          .single();
+        if (!paramError && param && param.expiry_date) {
+          const expiry = new Date(param.expiry_date);
+          const nowDate = new Date(now.toISOString().split('T')[0]);
+          if (expiry < nowDate) {
+            // Parameter expired, delete the reminder
+            await supabase.from('reminders').delete().eq('id', reminder.id);
+            console.log(`Auto-deleted reminder ${reminder.id} for expired parameter ${reminder.parameter_id}`);
+          }
+        }
+      }
+    }
+
+    // 1. Fetch all reminders for today (regardless of time)
+    let remindersQuery = supabase
+      .from('reminders')
+      .select(`*, statutory_parameters ( name, category, expiry_date, description )`)
+      .eq('reminder_date', currentDate);
+    if (!isTest) {
+      remindersQuery = remindersQuery.eq('is_sent', false);
+    }
+    const { data: dueReminders, error: remindersError } = await remindersQuery;
     if (remindersError) {
       console.error('Error fetching reminders:', remindersError);
       throw new Error(`Failed to fetch reminders: ${remindersError.message}`);
     }
+    console.log(`Found ${dueReminders?.length || 0} due reminders for today`);
 
-    console.log(`Query: SELECT * FROM reminders WHERE reminder_date = '${currentDate}' AND reminder_time <= '${currentTime}' AND is_sent = false`);
-    console.log(`Found ${dueReminders?.length || 0} due reminders`);
+    // 2. Fetch all parameters expiring in the next 5 days (and not yet renewed)
+    const fiveDaysLater = new Date(now.getTime() + 5 * 24 * 60 * 60 * 1000);
+    const fiveDaysLaterStr = fiveDaysLater.toISOString().split('T')[0];
+    const { data: expiringParams, error: paramsError } = await supabase
+      .from('statutory_parameters')
+      .select('*')
+      .gte('expiry_date', currentDate)
+      .lte('expiry_date', fiveDaysLaterStr);
+      // TODO: Add logic to exclude renewed parameters if such a flag/field exists
+    if (paramsError) {
+      console.error('Error fetching expiring parameters:', paramsError);
+      throw new Error(`Failed to fetch expiring parameters: ${paramsError.message}`);
+    }
+    console.log(`Found ${expiringParams?.length || 0} parameters expiring in next 5 days`);
 
     if (!dueReminders || dueReminders.length === 0) {
       // Let's also check what reminders exist for debugging
@@ -281,14 +252,9 @@ const handler = async (req: Request): Promise<Response> => {
         message: 'No due reminders found',
         debug: {
           currentDate,
-          currentTime,
+          currentTime: now.toTimeString().split(' ')[0].substring(0, 5),
           utcTime: now.toISOString(),
           allPendingReminders: allReminders,
-          gmailConfig: {
-            hasUser: !!GMAIL_USER,
-            hasPassword: !!GMAIL_APP_PASS,
-            user: GMAIL_USER ? `${GMAIL_USER.substring(0, 3)}***` : 'Not set'
-          }
         }
       }), {
         status: 200,
@@ -299,7 +265,7 @@ const handler = async (req: Request): Promise<Response> => {
     console.log(`Processing ${dueReminders.length} due reminders`);
     
     let totalEmailsSent = 0;
-    const emailResults = [];
+    const emailResults: any[] = [];
 
     // Process each reminder
     for (const reminder of dueReminders as ReminderWithDetails[]) {
@@ -355,18 +321,15 @@ const handler = async (req: Request): Promise<Response> => {
           try {
             // Generate personalized email content
             const emailTemplate = generateEmailTemplate(reminder, user.name);
-            
-            // Send email via Gmail SMTP
-            const emailResult = await sendGmailEmail(
+            // Send email via Resend
+            const emailResult = await sendEmailWithResend(
               user.email,
               emailTemplate.subject,
               emailTemplate.htmlContent,
               emailTemplate.textContent
             );
-
             console.log(`Email sent successfully to ${user.email}:`, emailResult);
             successfulSends++;
-
             // Add 2-second delay between sends to avoid rate limiting
             await new Promise(resolve => setTimeout(resolve, 2000));
           } catch (emailError) {
@@ -414,22 +377,55 @@ const handler = async (req: Request): Promise<Response> => {
       }
     }
 
+    // Send parameter expiry notifications
+    for (const param of expiringParams || []) {
+      try {
+        // Get all users from the same dairy unit
+        const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers();
+        if (authError) throw new Error(`Failed to fetch auth users: ${authError.message}`);
+        const { data: profiles, error: profilesError } = await supabase
+          .from('profiles')
+          .select('id, full_name, dairy_unit_id')
+          .eq('dairy_unit_id', param.dairy_unit_id);
+        if (profilesError) throw new Error(`Failed to fetch profiles: ${profilesError.message}`);
+        if (!profiles || profiles.length === 0) continue;
+        const usersWithEmails: Array<{email: string, name: string}> = [];
+        for (const profile of profiles) {
+          const authUser = authUsers.users.find(u => u.id === profile.id);
+          if (authUser?.email) {
+            usersWithEmails.push({ email: authUser.email, name: profile.full_name || 'Team Member' });
+          }
+        }
+        for (const user of usersWithEmails) {
+          try {
+            // Generate parameter expiry email content
+            const expiryDate = new Date(param.expiry_date).toLocaleDateString('en-GB');
+            const subject = `Parameter Expiry Notice: ${param.name} expires on ${expiryDate}`;
+            const htmlContent = `<p>Hi ${user.name},<br>Your parameter <b>${param.name}</b> is expiring on <b>${expiryDate}</b>.<br>Please renew it to avoid compliance issues.</p>`;
+            const textContent = `Hi ${user.name},\nYour parameter ${param.name} is expiring on ${expiryDate}. Please renew it to avoid compliance issues.`;
+            const emailResult = await sendEmailWithResend(user.email, subject, htmlContent, textContent);
+            console.log(`Parameter expiry email sent to ${user.email}:`, emailResult);
+            await new Promise(resolve => setTimeout(resolve, 2000));
+          } catch (emailError) {
+            console.error(`Failed to send parameter expiry email to ${user.email}:`, emailError);
+          }
+        }
+      } catch (err) {
+        console.error('Error processing parameter expiry notification:', err);
+      }
+    }
+
     console.log(`Email processing complete. Total emails sent: ${totalEmailsSent}`);
 
     return new Response(JSON.stringify({
-      message: 'Gmail email processing completed',
+      message: 'Resend email processing completed',
       totalEmailsSent,
       processedReminders: emailResults.length,
       results: emailResults,
       debug: {
         currentDate,
-        currentTime,
+        currentTime: now.toTimeString().split(' ')[0].substring(0, 5),
         utcTime: now.toISOString(),
-        gmailConfig: {
-          hasUser: !!GMAIL_USER,
-          hasPassword: !!GMAIL_APP_PASS,
-          user: GMAIL_USER ? `${GMAIL_USER.substring(0, 3)}***` : 'Not set'
-        }
       }
     }), {
       status: 200,
