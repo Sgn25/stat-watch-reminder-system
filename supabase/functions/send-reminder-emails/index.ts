@@ -261,14 +261,22 @@ const handler = async (req: Request): Promise<Response> => {
   try {
     console.log('Starting Gmail reminder email check...');
     
-    // Get current date and time in ISO format
+    // Get current date and time - using UTC and converting properly
     const now = new Date();
-    const currentDate = now.toISOString().split('T')[0];
-    const currentTime = now.toTimeString().split(' ')[0].substring(0, 5);
     
-    console.log(`Checking for reminders due on ${currentDate} at ${currentTime}`);
+    // Get current date in YYYY-MM-DD format (database stores dates in this format)
+    const currentDate = now.toISOString().split('T')[0];
+    
+    // Get current time in HH:MM format - add some buffer time (5 minutes)
+    const bufferTime = new Date(now.getTime() + 5 * 60 * 1000); // Add 5 minutes buffer
+    const currentTime = bufferTime.toTimeString().split(' ')[0].substring(0, 5);
+    
+    console.log(`Checking for reminders due on ${currentDate} at or before ${currentTime}`);
+    console.log(`Current UTC time: ${now.toISOString()}`);
+    console.log(`Buffer time used: ${bufferTime.toTimeString().split(' ')[0].substring(0, 5)}`);
     
     // Fetch due reminders that haven't been sent
+    // Using broader time range to account for timezone differences
     const { data: dueReminders, error: remindersError } = await supabase
       .from('reminders')
       .select(`
@@ -285,18 +293,37 @@ const handler = async (req: Request): Promise<Response> => {
       .eq('is_sent', false);
 
     if (remindersError) {
+      console.error('Error fetching reminders:', remindersError);
       throw new Error(`Failed to fetch reminders: ${remindersError.message}`);
     }
 
+    console.log(`Query: SELECT * FROM reminders WHERE reminder_date = '${currentDate}' AND reminder_time <= '${currentTime}' AND is_sent = false`);
+    console.log(`Found ${dueReminders?.length || 0} due reminders`);
+
     if (!dueReminders || dueReminders.length === 0) {
-      console.log('No due reminders found');
-      return new Response(JSON.stringify({ message: 'No due reminders found' }), {
+      // Let's also check what reminders exist for debugging
+      const { data: allReminders } = await supabase
+        .from('reminders')
+        .select('id, reminder_date, reminder_time, is_sent')
+        .eq('is_sent', false);
+      
+      console.log('All pending reminders for debugging:', allReminders);
+      
+      return new Response(JSON.stringify({ 
+        message: 'No due reminders found',
+        debug: {
+          currentDate,
+          currentTime,
+          utcTime: now.toISOString(),
+          allPendingReminders: allReminders
+        }
+      }), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    console.log(`Found ${dueReminders.length} due reminders`);
+    console.log(`Processing ${dueReminders.length} due reminders`);
     
     let totalEmailsSent = 0;
     const emailResults = [];
@@ -420,7 +447,12 @@ const handler = async (req: Request): Promise<Response> => {
       message: 'Gmail email processing completed',
       totalEmailsSent,
       processedReminders: emailResults.length,
-      results: emailResults
+      results: emailResults,
+      debug: {
+        currentDate,
+        currentTime,
+        utcTime: now.toISOString()
+      }
     }), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
