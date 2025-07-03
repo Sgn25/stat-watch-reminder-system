@@ -3,6 +3,7 @@ name: Daily Supabase Reminder
 on:
   schedule:
     - cron: '0 4 * * *' # 4:00 UTC = 10:00 AM IST (adjust as needed)
+workflow_dispatch:
 
 jobs:
   call-supabase-function:
