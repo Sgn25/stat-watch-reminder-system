@@ -11,7 +11,7 @@ jobs:
     steps:
       - name: Call Supabase Edge Function
         run: |
-          curl -X POST "https://mnrsqiinquoeeismvnua.supabase.co/functions/v1/send-reminder-emails \
+          curl -X POST "https://mnrsqiinquoeeismvnua.functions.supabase.co/send-reminder-emails" \
             -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
             -H "Content-Type: application/json" \
             -d '{}'
