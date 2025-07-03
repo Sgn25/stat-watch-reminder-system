@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { useStatutoryParameters } from '@/hooks/useStatutoryParameters';
 import { EditParameterForm } from '@/components/EditParameterForm';
 import { formatDate } from '@/lib/dateUtils';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface ParameterCardProps {
   parameter: StatutoryParameter;
@@ -86,9 +87,38 @@ export const ParameterCard = ({ parameter }: ParameterCardProps) => {
           </div>
         </div>
 
-        <div className="mt-4">
-          <Button onClick={() => setIsEditDialogOpen(true)}>Edit</Button>
-          <Button onClick={handleDelete}>Delete</Button>
+        <div className="mt-4 flex justify-end gap-2">
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="text-blue-600 hover:bg-blue-50 hover:text-blue-800 focus:ring-2 focus:ring-blue-300"
+                  onClick={() => setIsEditDialogOpen(true)}
+                  aria-label="Edit Parameter"
+                >
+                  <Edit className="w-5 h-5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Edit</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="text-red-600 hover:bg-red-50 hover:text-red-800 focus:ring-2 focus:ring-red-300"
+                  onClick={handleDelete}
+                  disabled={isDeletingParameter}
+                  aria-label="Delete Parameter"
+                >
+                  <Trash2 className="w-5 h-5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Delete</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </div>
       </div>
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>

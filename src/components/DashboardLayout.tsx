@@ -1,9 +1,8 @@
 import React from 'react';
 import { Sidebar } from '@/components/Sidebar';
-import { Drawer, DrawerContent, DrawerTrigger } from '@/components/ui/drawer';
+import { Drawer, DrawerTrigger, DrawerPortal, DrawerOverlay, DrawerClose } from '@/components/ui/drawer';
 import { Menu } from 'lucide-react';
 import { useState } from 'react';
-import { BottomNav } from '@/components/BottomNav';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -23,9 +22,20 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
               <Menu className="w-7 h-7" />
             </button>
           </DrawerTrigger>
-          <DrawerContent>
-            <Sidebar />
-          </DrawerContent>
+          <DrawerPortal>
+            <DrawerOverlay />
+            <div
+              className="fixed inset-y-0 left-0 w-64 z-50 flex flex-col bg-gray-800 border-r border-gray-700"
+              style={{ maxHeight: '100vh', overflowY: 'auto' }}
+            >
+              <Sidebar mobile />
+              <DrawerClose asChild>
+                <button className="absolute top-2 right-2 text-gray-400 text-2xl" onClick={() => setDrawerOpen(false)}>
+                  ×
+                </button>
+              </DrawerClose>
+            </div>
+          </DrawerPortal>
         </Drawer>
         <h1 className="ml-4 text-xl font-bold text-white">StatMonitor</h1>
       </div>
@@ -35,10 +45,6 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
             {children}
           </div>
         </main>
-        {/* Mobile Bottom Navigation */}
-        <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50">
-          <BottomNav />
-        </div>
       </div>
     </div>
   );

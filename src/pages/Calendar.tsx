@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
@@ -31,6 +30,18 @@ const CalendarPage = () => {
   };
 
   const hoveredDateParameters = hoveredDate ? getParametersForDate(hoveredDate) : [];
+
+  // Utility for DD/MM/YYYY
+  function toDisplayDate(isoDate: string) {
+    if (!isoDate) return '';
+    const [year, month, day] = isoDate.split('-');
+    return `${day}/${month}/${year}`;
+  }
+
+  // Utility for DD MMM YYYY
+  function toDisplayDateLong(date: Date) {
+    return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+  }
 
   return (
     <ProtectedRoute>
@@ -131,7 +142,7 @@ const CalendarPage = () => {
                           <div>
                             <p className="text-sm font-medium text-white">{param.name}</p>
                             <p className="text-xs text-gray-400">
-                              {new Date(param.expiry_date).toLocaleDateString()}
+                              {toDisplayDate(param.expiry_date)}
                             </p>
                           </div>
                           <Badge className={param.status === 'expired' ? 'bg-red-600' : 'bg-amber-600'}>
@@ -150,7 +161,7 @@ const CalendarPage = () => {
                 <Card className="bg-gray-800 border-gray-700">
                   <CardHeader>
                     <CardTitle className="text-white">
-                      {selectedDate.toLocaleDateString()}
+                      {toDisplayDateLong(selectedDate)}
                     </CardTitle>
                   </CardHeader>
                   <CardContent>

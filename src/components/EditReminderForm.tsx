@@ -47,6 +47,10 @@ export const EditReminderForm = ({ reminder, onClose }: EditReminderFormProps) =
     e.preventDefault();
     setError(null);
     setSuccess(false);
+    if (!formData.parameter_id) {
+      setError('Please select a parameter.');
+      return;
+    }
     try {
       await new Promise<void>((resolve, reject) => {
         updateReminder(

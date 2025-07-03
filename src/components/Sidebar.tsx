@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { LayoutDashboard, FileText, Bell, User, Calendar, LogOut, Building2 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
@@ -8,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { UserInfoDisplay } from '@/components/UserInfoDisplay';
 import { NavLink } from 'react-router-dom';
 
-export const Sidebar = () => {
+export const Sidebar = ({ mobile = false }: { mobile?: boolean }) => {
   const { signOut } = useAuth();
   const { profile } = useUserProfile();
 
@@ -21,7 +20,7 @@ export const Sidebar = () => {
   ];
 
   return (
-    <div className="hidden lg:fixed lg:inset-y-0 lg:z-50 lg:flex lg:w-64 lg:flex-col">
+    <div className={mobile ? 'w-64 flex flex-col bg-gray-800 border-r border-gray-700 px-6 py-4' : 'hidden lg:fixed lg:inset-y-0 lg:z-50 lg:flex lg:w-64 lg:flex-col'}>
       <div className="flex grow flex-col gap-y-5 overflow-y-auto bg-gray-800 border-r border-gray-700 px-6 py-4">
         <div className="flex h-16 shrink-0 items-center">
           <div className="flex items-center gap-2">
