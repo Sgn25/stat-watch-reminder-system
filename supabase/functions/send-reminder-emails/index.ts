@@ -400,8 +400,54 @@ const handler = async (req: Request): Promise<Response> => {
           try {
             // Generate parameter expiry email content
             const expiryDate = new Date(param.expiry_date).toLocaleDateString('en-GB');
-            const subject = `Parameter Expiry Notice: ${param.name} expires on ${expiryDate}`;
-            const htmlContent = `<p>Hi ${user.name},<br>Your parameter <b>${param.name}</b> is expiring on <b>${expiryDate}</b>.<br>Please renew it to avoid compliance issues.</p>`;
+            const subject = `License Expiry Alert: ${param.name} expires on ${expiryDate}`;
+            const htmlContent = `
+              <!DOCTYPE html>
+              <html>
+              <head>
+                <meta charset="utf-8">
+                <style>
+                  body { font-family: Arial, sans-serif; background: #f4f6fa; color: #222; margin: 0; }
+                  .container { max-width: 600px; margin: 0 auto; background: #fff; border-radius: 10px; overflow: hidden; box-shadow: 0 2px 8px #0001; }
+                  .header { background: #1e3a8a; color: #fff; padding: 24px 24px 12px 24px; text-align: center; }
+                  .alert { background: #fee2e2; color: #b91c1c; border-left: 6px solid #ef4444; padding: 16px; margin: 24px 0 16px 0; border-radius: 6px; }
+                  .details { background: #f1f5f9; border-radius: 6px; padding: 16px; margin-bottom: 24px; }
+                  .details ul { list-style: none; padding: 0; margin: 0; }
+                  .details li { margin-bottom: 8px; }
+                  .cta { display: block; width: fit-content; margin: 0 auto 24px auto; background: #1e3a8a; color: #fff; text-decoration: none; padding: 12px 32px; border-radius: 6px; font-weight: bold; }
+                  .footer { text-align: center; color: #888; font-size: 12px; padding: 16px 24px; background: #f9fafb; }
+                </style>
+              </head>
+              <body>
+                <div class="container">
+                  <div class="header">
+                    <h1>⚠️ License Expiry Alert</h1>
+                    <p style="margin: 0; font-size: 1.1em;">StatMonitor Notification</p>
+                  </div>
+                  <div class="alert">
+                    <strong>Action Required:</strong> Your license <b>${param.name}</b> is expiring on <b>${expiryDate}</b>.
+                  </div>
+                  <div style="padding: 0 24px;">
+                    <p>Hi ${user.name},</p>
+                    <div class="details">
+                      <ul>
+                        <li><strong>Name:</strong> ${param.name}</li>
+                        <li><strong>Category:</strong> ${param.category}</li>
+                        <li><strong>Expiry Date:</strong> ${expiryDate}</li>
+                        ${param.description ? `<li><strong>Description:</strong> ${param.description}</li>` : ''}
+                      </ul>
+                    </div>
+                    <a href="https://statmonitor.vercel.app/parameters" class="cta">Renew Now</a>
+                    <p style="margin-bottom: 0;">Please renew this license as soon as possible to avoid compliance issues.</p>
+                  </div>
+                  <div class="footer">
+                    This is an automated reminder from StatMonitor.<br>
+                    Need help? Contact your admin or reply to this email.
+                  </div>
+                </div>
+              </body>
+              </html>
+            `;
             const textContent = `Hi ${user.name},\nYour parameter ${param.name} is expiring on ${expiryDate}. Please renew it to avoid compliance issues.`;
             const emailResult = await sendEmailWithResend(user.email, subject, htmlContent, textContent);
             console.log(`Parameter expiry email sent to ${user.email}:`, emailResult);
