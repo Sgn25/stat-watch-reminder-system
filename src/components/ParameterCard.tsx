@@ -86,4 +86,19 @@ export const ParameterCard = ({ parameter }: ParameterCardProps) => {
           </div>
         </div>
 
-        <div className={`
+        <div className="mt-4">
+          <Button onClick={() => setIsEditDialogOpen(true)}>Edit</Button>
+          <Button onClick={handleDelete}>Delete</Button>
+        </div>
+      </div>
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Parameter</DialogTitle>
+          </DialogHeader>
+          <EditParameterForm parameter={parameter} onClose={() => setIsEditDialogOpen(false)} />
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+};
