@@ -1,0 +1,17 @@
+name: Daily Supabase Reminder
+
+on:
+  schedule:
+    - cron: '0 4 * * *' # 4:00 UTC = 10:00 AM IST (adjust as needed)
+  workflow_dispatch:      # <-- Indented to match 'schedule:'
+
+jobs:
+  call-supabase-function:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call Supabase Edge Function
+        run: |
+          curl -X POST "https://mnrsqiinquoeeismvnua.functions.supabase.co/send-reminder-emails" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d '{}'
