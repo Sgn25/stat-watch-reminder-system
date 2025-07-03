@@ -27,129 +27,139 @@ const supabase = createClient(
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
 );
 
-// AWS SES configuration
-const AWS_ACCESS_KEY_ID = Deno.env.get('AWS_ACCESS_KEY_ID');
-const AWS_SECRET_ACCESS_KEY = Deno.env.get('AWS_SECRET_ACCESS_KEY');
-const AWS_REGION = Deno.env.get('AWS_REGION') || 'us-east-1';
+// Gmail SMTP configuration
+const GMAIL_USER = Deno.env.get('GMAIL_USER');
+const GMAIL_APP_PASS = Deno.env.get('GMAIL_APP_PASS');
 
-// AWS SES API endpoint
-const SES_ENDPOINT = `https://email.${AWS_REGION}.amazonaws.com/`;
-
-// Function to create AWS signature for SES API
-async function createAwsSignature(stringToSign: string, secretKey: string): Promise<string> {
-  const encoder = new TextEncoder();
-  const key = await crypto.subtle.importKey(
-    'raw',
-    encoder.encode(secretKey),
-    { name: 'HMAC', hash: 'SHA-256' },
-    false,
-    ['sign']
-  );
-  
-  const signature = await crypto.subtle.sign('HMAC', key, encoder.encode(stringToSign));
-  return Array.from(new Uint8Array(signature))
-    .map(b => b.toString(16).padStart(2, '0'))
-    .join('');
-}
-
-async function sendSESEmail(to: string[], subject: string, htmlContent: string, textContent: string) {
-  if (!AWS_ACCESS_KEY_ID || !AWS_SECRET_ACCESS_KEY) {
-    throw new Error('AWS credentials not configured');
+async function sendGmailEmail(to: string, subject: string, htmlContent: string, textContent: string) {
+  if (!GMAIL_USER || !GMAIL_APP_PASS) {
+    throw new Error('Gmail credentials not configured');
   }
 
-  const timestamp = new Date().toISOString().replace(/[:\-]|\.\d{3}/g, '');
-  const date = timestamp.substr(0, 8);
-  
-  // Create the request body for SES SendEmail API
-  const emailData = {
-    Source: 'statmonitor.reminder@gmail.com',
-    Destination: {
-      ToAddresses: to
-    },
-    Message: {
-      Subject: {
-        Data: subject,
-        Charset: 'UTF-8'
-      },
-      Body: {
-        Html: {
-          Data: htmlContent,
-          Charset: 'UTF-8'
-        },
-        Text: {
-          Data: textContent,
-          Charset: 'UTF-8'
-        }
-      }
-    }
-  };
+  // Create the email message in RFC2822 format
+  const boundary = `boundary_${Date.now()}_${Math.random().toString(36)}`;
+  const emailMessage = [
+    `From: Reminder Bot <${GMAIL_USER}>`,
+    `To: ${to}`,
+    `Subject: ${subject}`,
+    `MIME-Version: 1.0`,
+    `Content-Type: multipart/alternative; boundary="${boundary}"`,
+    ``,
+    `--${boundary}`,
+    `Content-Type: text/plain; charset=utf-8`,
+    ``,
+    textContent,
+    ``,
+    `--${boundary}`,
+    `Content-Type: text/html; charset=utf-8`,
+    ``,
+    htmlContent,
+    ``,
+    `--${boundary}--`
+  ].join('\r\n');
 
-  // Convert to AWS SES API format
-  const params = new URLSearchParams();
-  params.append('Action', 'SendEmail');
-  params.append('Version', '2010-12-01');
-  params.append('Source', emailData.Source);
-  
-  emailData.Destination.ToAddresses.forEach((email, index) => {
-    params.append(`Destination.ToAddresses.member.${index + 1}`, email);
-  });
-  
-  params.append('Message.Subject.Data', emailData.Message.Subject.Data);
-  params.append('Message.Subject.Charset', emailData.Message.Subject.Charset);
-  params.append('Message.Body.Html.Data', emailData.Message.Body.Html.Data);
-  params.append('Message.Body.Html.Charset', emailData.Message.Body.Html.Charset);
-  params.append('Message.Body.Text.Data', emailData.Message.Body.Text.Data);
-  params.append('Message.Body.Text.Charset', emailData.Message.Body.Text.Charset);
+  // Base64 encode the message
+  const encodedMessage = btoa(emailMessage).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 
-  // Create AWS signature
-  const algorithm = 'AWS4-HMAC-SHA256';
-  const service = 'ses';
-  const host = `email.${AWS_REGION}.amazonaws.com`;
-  const canonicalUri = '/';
-  const canonicalQueryString = '';
-  const payloadHash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(params.toString()));
-  const payloadHashHex = Array.from(new Uint8Array(payloadHash)).map(b => b.toString(16).padStart(2, '0')).join('');
-  
-  const canonicalHeaders = `host:${host}\nx-amz-date:${timestamp}\n`;
-  const signedHeaders = 'host;x-amz-date';
-  const canonicalRequest = `POST\n${canonicalUri}\n${canonicalQueryString}\n${canonicalHeaders}\n${signedHeaders}\n${payloadHashHex}`;
-  
-  const credentialScope = `${date}/${AWS_REGION}/${service}/aws4_request`;
-  const stringToSign = `${algorithm}\n${timestamp}\n${credentialScope}\n${await crypto.subtle.digest('SHA-256', new TextEncoder().encode(canonicalRequest)).then(hash => Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join(''))}`;
-  
-  // Create signing key
-  const kDate = await createAwsSignature(date, `AWS4${AWS_SECRET_ACCESS_KEY}`);
-  const kRegion = await createAwsSignature(AWS_REGION, kDate);
-  const kService = await createAwsSignature(service, kRegion);
-  const kSigning = await createAwsSignature('aws4_request', kService);
-  const signature = await createAwsSignature(stringToSign, kSigning);
-  
-  const authorizationHeader = `${algorithm} Credential=${AWS_ACCESS_KEY_ID}/${credentialScope}, SignedHeaders=${signedHeaders}, Signature=${signature}`;
-
-  const response = await fetch(SES_ENDPOINT, {
+  // Use Gmail API via SMTP authentication
+  const response = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
     method: 'POST',
     headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
-      'X-Amz-Date': timestamp,
-      'Authorization': authorizationHeader,
-      'Host': host,
+      'Authorization': `Basic ${btoa(`${GMAIL_USER}:${GMAIL_APP_PASS}`)}`,
+      'Content-Type': 'application/json',
     },
-    body: params.toString(),
+    body: JSON.stringify({
+      raw: encodedMessage
+    })
   });
 
   if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`AWS SES API error: ${response.status} - ${errorText}`);
+    // Fallback to direct SMTP if Gmail API fails
+    return await sendViaSMTP(to, subject, htmlContent, textContent);
   }
 
-  return await response.text();
+  return await response.json();
+}
+
+async function sendViaSMTP(to: string, subject: string, htmlContent: string, textContent: string) {
+  // Direct SMTP connection to Gmail
+  const smtpData = {
+    host: 'smtp.gmail.com',
+    port: 465,
+    secure: true,
+    auth: {
+      user: GMAIL_USER,
+      pass: GMAIL_APP_PASS
+    },
+    from: `Reminder Bot <${GMAIL_USER}>`,
+    to: to,
+    subject: subject,
+    text: textContent,
+    html: htmlContent
+  };
+
+  // Use a simple SMTP implementation for Deno
+  try {
+    const conn = await Deno.connect({
+      hostname: 'smtp.gmail.com',
+      port: 465,
+      transport: 'tcp'
+    });
+
+    const encoder = new TextEncoder();
+    const decoder = new TextDecoder();
+
+    // SMTP handshake
+    await conn.write(encoder.encode(`EHLO localhost\r\n`));
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    // AUTH LOGIN
+    await conn.write(encoder.encode(`AUTH LOGIN\r\n`));
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    await conn.write(encoder.encode(`${btoa(GMAIL_USER!)}\r\n`));
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    await conn.write(encoder.encode(`${btoa(GMAIL_APP_PASS!)}\r\n`));
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    // Send email
+    await conn.write(encoder.encode(`MAIL FROM:<${GMAIL_USER}>\r\n`));
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    await conn.write(encoder.encode(`RCPT TO:<${to}>\r\n`));
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    await conn.write(encoder.encode(`DATA\r\n`));
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    const emailData = [
+      `From: Reminder Bot <${GMAIL_USER}>`,
+      `To: ${to}`,
+      `Subject: ${subject}`,
+      `MIME-Version: 1.0`,
+      `Content-Type: text/html; charset=utf-8`,
+      ``,
+      htmlContent,
+      `\r\n.\r\n`
+    ].join('\r\n');
+
+    await conn.write(encoder.encode(emailData));
+    await conn.write(encoder.encode(`QUIT\r\n`));
+    
+    conn.close();
+    return { success: true };
+  } catch (error) {
+    console.error('SMTP send failed:', error);
+    throw new Error(`Failed to send email via SMTP: ${error.message}`);
+  }
 }
 
 function generateEmailTemplate(reminder: ReminderWithDetails, recipientName: string) {
-  const expiryDate = new Date(reminder.statutory_parameters.expiry_date).toLocaleDateString();
-  const reminderDate = new Date(reminder.reminder_date).toLocaleDateString();
+  const expiryDate = new Date(reminder.statutory_parameters.expiry_date).toLocaleDateString('en-GB');
+  const reminderDate = new Date(reminder.reminder_date).toLocaleDateString('en-GB');
   
-  const subject = `Reminder: ${reminder.statutory_parameters.name} - Action Required`;
+  const subject = `Reminder: ${reminder.statutory_parameters.name} is expiring`;
   
   const htmlContent = `
     <!DOCTYPE html>
@@ -161,44 +171,41 @@ function generateEmailTemplate(reminder: ReminderWithDetails, recipientName: str
         .container { max-width: 600px; margin: 0 auto; padding: 20px; }
         .header { background: #1e3a8a; color: white; padding: 20px; text-align: center; }
         .content { padding: 20px; background: #f9f9f9; }
-        .alert { background: #fee2e2; border: 1px solid #fca5a5; padding: 15px; border-radius: 5px; margin: 15px 0; }
-        .warning { background: #fef3c7; border: 1px solid #f59e0b; }
-        .info { background: #dbeafe; border: 1px solid #60a5fa; }
+        .alert { background: #fef3c7; border: 1px solid #f59e0b; padding: 15px; border-radius: 5px; margin: 15px 0; }
         .footer { text-align: center; padding: 20px; font-size: 12px; color: #666; }
       </style>
     </head>
     <body>
       <div class="container">
         <div class="header">
-          <h1>📋 Statutory Parameter Reminder</h1>
+          <h1>📋 License Expiry Reminder</h1>
         </div>
         <div class="content">
-          <p>Dear ${recipientName || 'Team Member'},</p>
+          <p>Hi ${recipientName || 'there'},</p>
           
-          <div class="alert warning">
-            <h3>⚠️ Action Required</h3>
-            <p><strong>${reminder.statutory_parameters.name}</strong> requires your attention.</p>
+          <div class="alert">
+            <h3>⚠️ Important Reminder</h3>
+            <p>Your license <strong>${reminder.statutory_parameters.name}</strong> is expiring on <strong>${expiryDate}</strong>.</p>
           </div>
           
-          <h3>📊 Parameter Details:</h3>
+          <h3>📊 License Details:</h3>
           <ul>
             <li><strong>Name:</strong> ${reminder.statutory_parameters.name}</li>
             <li><strong>Category:</strong> ${reminder.statutory_parameters.category}</li>
             <li><strong>Expiry Date:</strong> ${expiryDate}</li>
-            <li><strong>Reminder Set For:</strong> ${reminderDate}</li>
             ${reminder.statutory_parameters.description ? `<li><strong>Description:</strong> ${reminder.statutory_parameters.description}</li>` : ''}
           </ul>
           
           ${reminder.custom_message ? `
-          <div class="alert info">
-            <h4>📝 Custom Message:</h4>
+          <div style="background: #dbeafe; border: 1px solid #60a5fa; padding: 15px; border-radius: 5px; margin: 15px 0;">
+            <h4>📝 Note:</h4>
             <p>${reminder.custom_message}</p>
           </div>` : ''}
           
-          <p>Please take the necessary action to ensure compliance with this statutory requirement.</p>
+          <p>Please take the necessary action to renew this license before it expires.</p>
           
           <p>Best regards,<br>
-          Statutory Parameters Monitoring System</p>
+          Reminder Bot</p>
         </div>
         <div class="footer">
           <p>This is an automated reminder. Please do not reply to this email.</p>
@@ -209,25 +216,24 @@ function generateEmailTemplate(reminder: ReminderWithDetails, recipientName: str
   `;
   
   const textContent = `
-    Statutory Parameter Reminder
+    License Expiry Reminder
     
-    Dear ${recipientName || 'Team Member'},
+    Hi ${recipientName || 'there'},
     
-    ${reminder.statutory_parameters.name} requires your attention.
+    This is a reminder that your license "${reminder.statutory_parameters.name}" is expiring on ${expiryDate}.
     
-    Parameter Details:
+    License Details:
     - Name: ${reminder.statutory_parameters.name}
     - Category: ${reminder.statutory_parameters.category}
     - Expiry Date: ${expiryDate}
-    - Reminder Set For: ${reminderDate}
     ${reminder.statutory_parameters.description ? `- Description: ${reminder.statutory_parameters.description}` : ''}
     
-    ${reminder.custom_message ? `Custom Message: ${reminder.custom_message}` : ''}
+    ${reminder.custom_message ? `Note: ${reminder.custom_message}` : ''}
     
-    Please take the necessary action to ensure compliance with this statutory requirement.
+    Please take the necessary action to renew this license before it expires.
     
     Best regards,
-    Statutory Parameters Monitoring System
+    Reminder Bot
   `;
   
   return { subject, htmlContent, textContent };
@@ -253,7 +259,7 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
-    console.log('Starting reminder email check...');
+    console.log('Starting Gmail reminder email check...');
     
     // Get current date and time in ISO format
     const now = new Date();
@@ -323,12 +329,15 @@ const handler = async (req: Request): Promise<Response> => {
         }
 
         // Match profiles with auth users to get email addresses
-        const usersWithEmails: string[] = [];
+        const usersWithEmails: Array<{email: string, name: string}> = [];
         
         for (const profile of profiles) {
           const authUser = authUsers.users.find(u => u.id === profile.id);
           if (authUser?.email) {
-            usersWithEmails.push(authUser.email);
+            usersWithEmails.push({
+              email: authUser.email,
+              name: profile.full_name || 'Team Member'
+            });
           }
         }
 
@@ -340,44 +349,57 @@ const handler = async (req: Request): Promise<Response> => {
 
         console.log(`Sending email to ${usersWithEmails.length} users`);
 
-        // Check AWS SES daily limit (200 emails per day for sandbox)
-        if (totalEmailsSent + usersWithEmails.length > 180) {
-          console.log('Approaching AWS SES daily limit, stopping email sending');
-          await logEmailActivity(reminder.id, 'failed', 'Daily email limit reached');
-          break;
+        // Send emails one by one with delay
+        let successfulSends = 0;
+        for (const user of usersWithEmails) {
+          try {
+            // Generate personalized email content
+            const emailTemplate = generateEmailTemplate(reminder, user.name);
+            
+            // Send email via Gmail SMTP
+            await sendGmailEmail(
+              user.email,
+              emailTemplate.subject,
+              emailTemplate.htmlContent,
+              emailTemplate.textContent
+            );
+
+            console.log(`Email sent successfully to ${user.email}`);
+            successfulSends++;
+
+            // Add 1-second delay between sends to avoid rate limiting
+            await new Promise(resolve => setTimeout(resolve, 1000));
+          } catch (emailError) {
+            console.error(`Failed to send email to ${user.email}:`, emailError);
+          }
         }
 
-        // Generate email content
-        const emailTemplate = generateEmailTemplate(reminder, 'Team Member');
-        
-        // Send email via AWS SES
-        const emailResponse = await sendSESEmail(
-          usersWithEmails,
-          emailTemplate.subject,
-          emailTemplate.htmlContent,
-          emailTemplate.textContent
-        );
+        if (successfulSends > 0) {
+          // Mark reminder as sent
+          await supabase
+            .from('reminders')
+            .update({ is_sent: true })
+            .eq('id', reminder.id);
 
-        console.log(`Email sent successfully for reminder ${reminder.id}:`, emailResponse);
+          totalEmailsSent += successfulSends;
+          await logEmailActivity(reminder.id, 'sent', undefined, successfulSends);
 
-        // Mark reminder as sent
-        await supabase
-          .from('reminders')
-          .update({ is_sent: true })
-          .eq('id', reminder.id);
-
-        totalEmailsSent += usersWithEmails.length;
-        await logEmailActivity(reminder.id, 'sent', undefined, usersWithEmails.length);
-
-        emailResults.push({
-          reminderId: reminder.id,
-          parameterName: reminder.statutory_parameters.name,
-          emailsSent: usersWithEmails.length,
-          status: 'success'
-        });
-
-        // Add a small delay between emails to avoid rate limiting
-        await new Promise(resolve => setTimeout(resolve, 1000));
+          emailResults.push({
+            reminderId: reminder.id,
+            parameterName: reminder.statutory_parameters.name,
+            emailsSent: successfulSends,
+            status: 'success'
+          });
+        } else {
+          await logEmailActivity(reminder.id, 'failed', 'No emails sent successfully');
+          
+          emailResults.push({
+            reminderId: reminder.id,
+            parameterName: reminder.statutory_parameters.name,
+            status: 'failed',
+            error: 'No emails sent successfully'
+          });
+        }
 
       } catch (error) {
         console.error(`Failed to process reminder ${reminder.id}:`, error);
@@ -395,7 +417,7 @@ const handler = async (req: Request): Promise<Response> => {
     console.log(`Email processing complete. Total emails sent: ${totalEmailsSent}`);
 
     return new Response(JSON.stringify({
-      message: 'Email processing completed',
+      message: 'Gmail email processing completed',
       totalEmailsSent,
       processedReminders: emailResults.length,
       results: emailResults
