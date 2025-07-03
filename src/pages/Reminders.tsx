@@ -4,14 +4,18 @@ import { DashboardLayout } from '@/components/DashboardLayout';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { useReminders } from '@/hooks/useReminders';
 import { Button } from '@/components/ui/button';
-import { Bell, Plus } from 'lucide-react';
+import { Bell, Plus, Mail } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { AddReminderForm } from '@/components/AddReminderForm';
 import { ReminderCard } from '@/components/ReminderCard';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 const Reminders = () => {
   const { reminders, isLoading } = useReminders();
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isTestingEmail, setIsTestingEmail] = useState(false);
+  const { toast } = useToast();
 
   // Group reminders by parameter
   const remindersByParameter = reminders.reduce((acc: any, reminder: any) => {
@@ -25,6 +29,33 @@ const Reminders = () => {
     acc[parameterId].reminders.push(reminder);
     return acc;
   }, {});
+
+  const handleTestEmail = async () => {
+    setIsTestingEmail(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('test-email-send');
+      
+      if (error) {
+        throw error;
+      }
+      
+      toast({
+        title: "Test Email Triggered",
+        description: "Check the function logs for results and your email inbox",
+      });
+      
+      console.log('Test email result:', data);
+    } catch (error: any) {
+      toast({
+        title: "Test Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+      console.error('Test email error:', error);
+    } finally {
+      setIsTestingEmail(false);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -47,20 +78,31 @@ const Reminders = () => {
               <h1 className="text-3xl font-bold text-white">Reminders</h1>
               <p className="text-gray-400 mt-1">Set custom reminder notifications for parameter expiration</p>
             </div>
-            <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-              <DialogTrigger asChild>
-                <Button className="bg-blue-600 hover:bg-blue-700">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Reminder
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-md bg-gray-800 border-gray-700">
-                <DialogHeader>
-                  <DialogTitle className="text-white">Set New Reminder</DialogTitle>
-                </DialogHeader>
-                <AddReminderForm onClose={() => setIsAddDialogOpen(false)} />
-              </DialogContent>
-            </Dialog>
+            <div className="flex gap-2">
+              <Button 
+                onClick={handleTestEmail}
+                disabled={isTestingEmail}
+                variant="outline"
+                className="border-green-600 text-green-400 hover:bg-green-900/20"
+              >
+                <Mail className="w-4 h-4 mr-2" />
+                {isTestingEmail ? 'Testing...' : 'Test Email'}
+              </Button>
+              <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button className="bg-blue-600 hover:bg-blue-700">
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add Reminder
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-md bg-gray-800 border-gray-700">
+                  <DialogHeader>
+                    <DialogTitle className="text-white">Set New Reminder</DialogTitle>
+                  </DialogHeader>
+                  <AddReminderForm onClose={() => setIsAddDialogOpen(false)} />
+                </DialogContent>
+              </Dialog>
+            </div>
           </div>
 
           {reminders.length === 0 ? (

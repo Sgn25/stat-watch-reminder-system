@@ -92,6 +92,41 @@ export const useReminders = () => {
     },
   });
 
+  // Update reminder mutation
+  const updateReminderMutation = useMutation({
+    mutationFn: async ({ id, ...updates }: {
+      id: string;
+      parameter_id?: string;
+      reminder_date?: string;
+      reminder_time?: string;
+      custom_message?: string;
+    }) => {
+      const { data, error } = await supabase
+        .from('reminders')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['reminders'] });
+      toast({
+        title: "Success",
+        description: "Reminder updated successfully",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   // Delete reminder mutation
   const deleteReminderMutation = useMutation({
     mutationFn: async (id: string) => {
@@ -123,8 +158,10 @@ export const useReminders = () => {
     isLoading,
     error,
     addReminder: addReminderMutation.mutate,
+    updateReminder: updateReminderMutation.mutate,
     deleteReminder: deleteReminderMutation.mutate,
     isAddingReminder: addReminderMutation.isPending,
+    isUpdatingReminder: updateReminderMutation.isPending,
     isDeletingReminder: deleteReminderMutation.isPending,
   };
 };
