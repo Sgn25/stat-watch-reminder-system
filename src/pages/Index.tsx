@@ -19,15 +19,17 @@ const Index = () => {
   const { profile } = useUserProfile();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
+  const [selectedStatus, setSelectedStatus] = useState<'all' | 'valid' | 'warning' | 'expired'>('all');
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
 
-  const categories = ['All', 'License', 'Certificate', 'Permit', 'Registration', 'Compliance'];
+  const categories = ['All', 'License', 'Certificate', 'Permit', 'Registration', 'Compliance', 'Insurance'];
 
   const filteredParameters = parameters.filter(param => {
     const matchesSearch = param.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          param.description?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategory = selectedCategory === 'All' || param.category === selectedCategory;
-    return matchesSearch && matchesCategory;
+    const matchesStatus = selectedStatus === 'all' || param.status === selectedStatus;
+    return matchesSearch && matchesCategory && matchesStatus;
   });
 
   const getStatusCounts = () => {
@@ -40,6 +42,26 @@ const Index = () => {
   };
 
   const statusCounts = getStatusCounts();
+
+  const handleStatusFilter = (status: 'all' | 'valid' | 'warning' | 'expired') => {
+    setSelectedStatus(status);
+  };
+
+  const getStatusCardStyle = (status: 'all' | 'valid' | 'warning' | 'expired') => {
+    const baseStyle = "bg-gray-800 p-6 rounded-lg shadow-lg border border-gray-700 hover:shadow-xl transition-all duration-200 cursor-pointer";
+    const isSelected = selectedStatus === status;
+    
+    if (isSelected) {
+      switch (status) {
+        case 'all': return `${baseStyle} ring-2 ring-blue-400 ring-opacity-50`;
+        case 'valid': return `${baseStyle} ring-2 ring-green-400 ring-opacity-50`;
+        case 'warning': return `${baseStyle} ring-2 ring-amber-400 ring-opacity-50`;
+        case 'expired': return `${baseStyle} ring-2 ring-red-400 ring-opacity-50`;
+        default: return baseStyle;
+      }
+    }
+    return baseStyle;
+  };
 
   if (isLoading) {
     return (
@@ -87,7 +109,10 @@ const Index = () => {
 
           {/* Status Overview Cards */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="bg-gray-800 p-6 rounded-lg shadow-lg border border-gray-700 hover:shadow-xl transition-all duration-200">
+            <div 
+              className={getStatusCardStyle('all')}
+              onClick={() => handleStatusFilter('all')}
+            >
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-400">Total Parameters</p>
@@ -96,7 +121,10 @@ const Index = () => {
                 <LayoutDashboard className="w-8 h-8 text-blue-400" />
               </div>
             </div>
-            <div className="bg-gray-800 p-6 rounded-lg shadow-lg border border-gray-700 hover:shadow-xl transition-all duration-200">
+            <div 
+              className={getStatusCardStyle('valid')}
+              onClick={() => handleStatusFilter('valid')}
+            >
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-400">Valid</p>
@@ -105,7 +133,10 @@ const Index = () => {
                 <FileText className="w-8 h-8 text-green-400" />
               </div>
             </div>
-            <div className="bg-gray-800 p-6 rounded-lg shadow-lg border border-gray-700 hover:shadow-xl transition-all duration-200 animate-pulse">
+            <div 
+              className={getStatusCardStyle('warning')}
+              onClick={() => handleStatusFilter('warning')}
+            >
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-400">Expiring Soon</p>
@@ -114,13 +145,16 @@ const Index = () => {
                 <Bell className="w-8 h-8 text-amber-400" />
               </div>
             </div>
-            <div className="bg-gray-800 p-6 rounded-lg shadow-lg border border-gray-700 hover:shadow-xl transition-all duration-200">
+            <div 
+              className={getStatusCardStyle('expired')}
+              onClick={() => handleStatusFilter('expired')}
+            >
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-400">Expired</p>
                   <p className="text-2xl font-bold text-red-400">{statusCounts.expired}</p>
                 </div>
-                <Bell className="w-8 h-8 text-red-400 animate-bounce" />
+                <Bell className="w-8 h-8 text-red-400" />
               </div>
             </div>
           </div>
