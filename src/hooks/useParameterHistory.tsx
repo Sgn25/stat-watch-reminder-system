@@ -101,9 +101,10 @@ export const useParameterHistory = (parameterId: string) => {
       });
     },
     onError: (error: any) => {
+      console.error('Failed to add note:', error);
       toast({
         title: "Error",
-        description: error.message,
+        description: error.message || 'Failed to add note',
         variant: "destructive",
       });
     },
@@ -169,11 +170,11 @@ export const useParameterHistory = (parameterId: string) => {
     notes,
     isLoadingHistory,
     isLoadingNotes,
-    addNote: addNoteMutation.mutate,
+    addNote: (noteText: string) => addNoteMutation.mutate(noteText),
     updateNote: updateNoteMutation.mutate,
     deleteNote: deleteNoteMutation.mutate,
     isAddingNote: addNoteMutation.isPending,
     isUpdatingNote: updateNoteMutation.isPending,
     isDeletingNote: deleteNoteMutation.isPending,
   };
-}; 
+};

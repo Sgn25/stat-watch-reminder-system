@@ -122,7 +122,6 @@ export const ParameterDetailPopup = ({ parameter, isOpen, onClose }: ParameterDe
   const [newNote, setNewNote] = useState('');
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [editingNoteText, setEditingNoteText] = useState('');
-  const [noteErrorMsg, setNoteErrorMsg] = useState<string | null>(null);
 
   // Fetch creator name if needed
   useEffect(() => {
@@ -168,39 +167,11 @@ export const ParameterDetailPopup = ({ parameter, isOpen, onClose }: ParameterDe
     }
   };
 
-  // Note input state
-  const [isNoteError, setIsNoteError] = useState(false);
-
-  const handleAddNote = async () => {
+  // Simplified note handling
+  const handleAddNote = () => {
     if (newNote.trim()) {
-      setIsNoteError(false);
-      setNoteErrorMsg(null);
-      
-      // Debug: Check user session and dairy unit
-      const { data: { user } } = await supabase.auth.getUser();
-      console.log('Current user:', user?.id);
-      console.log('Parameter dairy_unit_id:', parameter.dairy_unit_id);
-      console.log('User profile dairy_unit_id:', profile?.dairy_unit_id);
-      
-      try {
-        await new Promise((resolve, reject) => {
-          addNote(newNote.trim(), {
-            onSuccess: resolve,
-            onError: (err: any) => {
-              console.error('Failed to save note:', err);
-              reject(err);
-            },
-          });
-        });
-        setNewNote('');
-      } catch (err: any) {
-        setIsNoteError(true);
-        let msg = err?.message || err?.error_description || null;
-        if (!msg && typeof err === 'object') {
-          try { msg = JSON.stringify(err); } catch { msg = String(err); }
-        }
-        setNoteErrorMsg(msg);
-      }
+      addNote(newNote.trim());
+      setNewNote('');
     }
   };
 
@@ -222,49 +193,6 @@ export const ParameterDetailPopup = ({ parameter, isOpen, onClose }: ParameterDe
     setEditingNoteId(note.id);
     setEditingNoteText(note.note_text);
   };
-
-  // Debug: Test RLS policy
-  const testRLS = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      console.log('No authenticated user');
-      return;
-    }
-    
-    console.log('Current user:', user.id);
-    console.log('Parameter ID:', parameter.id);
-    
-    // Test the debug function
-    const { data: debugData, error: debugError } = await supabase
-      .rpc('debug_dairy_unit_data', { param_id: parameter.id });
-    
-    console.log('Debug dairy unit data:', debugData, 'error:', debugError);
-    
-    // Test if we can select from parameter_notes for this parameter
-    const { data, error } = await supabase
-      .from('parameter_notes')
-      .select('*')
-      .eq('parameter_id', parameter.id)
-      .limit(1);
-    
-    console.log('RLS test - can select:', !error, 'data:', data, 'error:', error);
-    
-    // Test the insert policy by checking if the parameter belongs to user's dairy unit
-    const { data: paramCheck, error: paramError } = await supabase
-      .from('statutory_parameters')
-      .select('dairy_unit_id')
-      .eq('id', parameter.id)
-      .single();
-    
-    console.log('Parameter check:', paramCheck, 'error:', paramError);
-  };
-
-  // Call test on component mount
-  useEffect(() => {
-    if (isOpen) {
-      testRLS();
-    }
-  }, [isOpen, parameter.id]);
 
   return (
     <>
@@ -423,7 +351,7 @@ export const ParameterDetailPopup = ({ parameter, isOpen, onClose }: ParameterDe
                     <CardTitle className="text-white">Additional Notes</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    {/* Add Note Form */}
+                    {/* Add Note Form - Simplified */}
                     <div className="mb-6 p-4 bg-gray-700 rounded-lg border border-gray-600">
                       <h4 className="text-white font-medium mb-3">Add New Note</h4>
                       <div className="flex gap-2">
@@ -436,24 +364,12 @@ export const ParameterDetailPopup = ({ parameter, isOpen, onClose }: ParameterDe
                         />
                         <Button
                           onClick={handleAddNote}
-                          disabled={!newNote.trim() || isAddingNote || isNoteError}
+                          disabled={!newNote.trim() || isAddingNote}
                           className="bg-blue-600 hover:bg-blue-700"
                         >
                           <Plus className="w-4 h-4" />
                         </Button>
-                        {isNoteError && (
-                          <span className="text-red-500 text-xs ml-2">Failed to save note. {noteErrorMsg}</span>
-                        )}
                       </div>
-                      {/* Debug button */}
-                      <Button
-                        onClick={testRLS}
-                        size="sm"
-                        variant="outline"
-                        className="mt-2 text-xs"
-                      >
-                        Debug RLS
-                      </Button>
                     </div>
 
                     {/* Notes List */}
@@ -552,7 +468,7 @@ export const ParameterDetailPopup = ({ parameter, isOpen, onClose }: ParameterDe
       </Dialog>
 
       {/* Edit Parameter Dialog */}
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+      <Dialog open={isEditDialogOpen} onChange={setIsEditDialogOpen}>
         <DialogContent className="sm:max-w-md bg-gray-800 border-gray-700">
           <DialogHeader>
             <DialogTitle className="text-white">Edit Parameter</DialogTitle>
