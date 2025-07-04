@@ -39,24 +39,41 @@ export const useParameterHistory = (parameterId: string) => {
     enabled: !!parameterId,
   });
 
-  // Fetch parameter notes
-  const { data: notes = [], isLoading: isLoadingNotes } = useQuery({
+  // Fetch parameter notes with proper profile join
+  const { data: notes = [], isLoading: isLoadingNotes, refetch: refetchNotes } = useQuery({
     queryKey: ['parameter-notes', parameterId],
     queryFn: async () => {
+      console.log('Fetching notes for parameter:', parameterId);
+      
       const { data, error } = await supabase
         .from('parameter_notes')
         .select(`
-          *,
-          user_profile:user_id(full_name)
+          id,
+          parameter_id,
+          user_id,
+          note_text,
+          created_at,
+          updated_at,
+          profiles!inner(full_name)
         `)
         .eq('parameter_id', parameterId)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching notes:', error);
+        throw error;
+      }
+
+      console.log('Fetched notes data:', data);
 
       return data.map((item): ParameterNote => ({
-        ...item,
-        user_name: (item.user_profile as any)?.full_name || 'Unknown User'
+        id: item.id,
+        parameter_id: item.parameter_id,
+        user_id: item.user_id,
+        note_text: item.note_text,
+        created_at: item.created_at,
+        updated_at: item.updated_at,
+        user_name: (item.profiles as any)?.full_name || 'Unknown User'
       }));
     },
     enabled: !!parameterId,
@@ -68,6 +85,8 @@ export const useParameterHistory = (parameterId: string) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
 
+      console.log('Adding note:', noteText, 'for parameter:', parameterId);
+
       const { data, error } = await supabase
         .from('parameter_notes')
         .insert({
@@ -78,11 +97,18 @@ export const useParameterHistory = (parameterId: string) => {
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error adding note:', error);
+        throw error;
+      }
+
+      console.log('Note added successfully:', data);
       return data;
     },
     onSuccess: () => {
+      // Invalidate and refetch the notes
       queryClient.invalidateQueries({ queryKey: ['parameter-notes', parameterId] });
+      refetchNotes();
       toast({
         title: "Success",
         description: "Note added successfully",
@@ -113,6 +139,7 @@ export const useParameterHistory = (parameterId: string) => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['parameter-notes', parameterId] });
+      refetchNotes();
       toast({
         title: "Success",
         description: "Note updated successfully",
@@ -139,6 +166,7 @@ export const useParameterHistory = (parameterId: string) => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['parameter-notes', parameterId] });
+      refetchNotes();
       toast({
         title: "Success",
         description: "Note deleted successfully",
