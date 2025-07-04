@@ -7,6 +7,7 @@ import { useStatutoryParameters } from '@/hooks/useStatutoryParameters';
 import { EditParameterForm } from '@/components/EditParameterForm';
 import { formatDate } from '@/lib/dateUtils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { ParameterDetailPopup } from '@/components/ParameterDetailPopup';
 
 interface ParameterCardProps {
   parameter: StatutoryParameter;
@@ -80,6 +81,7 @@ function getDaysRemainingText(daysUntilExpiry: number): { text: string; color: s
 export const ParameterCard = ({ parameter }: ParameterCardProps) => {
   const { deleteParameter, isDeletingParameter } = useStatutoryParameters();
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isDetailPopupOpen, setIsDetailPopupOpen] = useState(false);
 
   const badge = getStatusAndBadge(parameter.daysUntilExpiry);
   const daysText = getDaysRemainingText(parameter.daysUntilExpiry);
@@ -102,7 +104,12 @@ export const ParameterCard = ({ parameter }: ParameterCardProps) => {
         </div>
         <div className="flex items-start justify-between mb-4">
           <div>
-            <h3 className="text-lg font-semibold text-gray-900">{parameter.name}</h3>
+            <h3 
+              className="text-lg font-semibold text-gray-900 cursor-pointer hover:text-blue-600 transition-colors"
+              onClick={() => setIsDetailPopupOpen(true)}
+            >
+              {parameter.name}
+            </h3>
             <p className="text-sm text-gray-600">{parameter.category}</p>
           </div>
         </div>
@@ -168,6 +175,13 @@ export const ParameterCard = ({ parameter }: ParameterCardProps) => {
           <EditParameterForm parameter={parameter} onClose={() => setIsEditDialogOpen(false)} />
         </DialogContent>
       </Dialog>
+
+      {/* Parameter Detail Popup */}
+      <ParameterDetailPopup
+        parameter={parameter}
+        isOpen={isDetailPopupOpen}
+        onClose={() => setIsDetailPopupOpen(false)}
+      />
     </>
   );
 };
