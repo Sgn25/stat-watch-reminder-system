@@ -39,12 +39,33 @@ export const useParameterHistory = (parameterId: string) => {
     enabled: !!parameterId,
   });
 
-  // Fetch parameter notes with proper profile join
+  // Fetch parameter notes with debugging
   const { data: notes = [], isLoading: isLoadingNotes, refetch: refetchNotes } = useQuery({
     queryKey: ['parameter-notes', parameterId],
     queryFn: async () => {
-      console.log('Fetching notes for parameter:', parameterId);
+      console.log('=== FETCHING NOTES DEBUG ===');
+      console.log('Parameter ID:', parameterId);
       
+      // First, let's check if there are any notes for this parameter at all
+      const { data: rawNotes, error: rawError } = await supabase
+        .from('parameter_notes')
+        .select('*')
+        .eq('parameter_id', parameterId);
+      
+      console.log('Raw notes from DB:', rawNotes);
+      console.log('Raw notes error:', rawError);
+      
+      if (rawError) {
+        console.error('Error fetching raw notes:', rawError);
+        throw rawError;
+      }
+      
+      if (!rawNotes || rawNotes.length === 0) {
+        console.log('No notes found for parameter:', parameterId);
+        return [];
+      }
+      
+      // Now fetch with profile join
       const { data, error } = await supabase
         .from('parameter_notes')
         .select(`
@@ -60,11 +81,32 @@ export const useParameterHistory = (parameterId: string) => {
         .order('created_at', { ascending: false });
 
       if (error) {
-        console.error('Error fetching notes:', error);
-        throw error;
+        console.error('Error fetching notes with profiles:', error);
+        // If profile join fails, let's try without it
+        const { data: simpleData, error: simpleError } = await supabase
+          .from('parameter_notes')
+          .select('*')
+          .eq('parameter_id', parameterId)
+          .order('created_at', { ascending: false });
+        
+        if (simpleError) {
+          console.error('Error fetching simple notes:', simpleError);
+          throw simpleError;
+        }
+        
+        console.log('Using simple notes without profile join:', simpleData);
+        return simpleData.map((item): ParameterNote => ({
+          id: item.id,
+          parameter_id: item.parameter_id,
+          user_id: item.user_id,
+          note_text: item.note_text,
+          created_at: item.created_at,
+          updated_at: item.updated_at,
+          user_name: 'Unknown User'
+        }));
       }
 
-      console.log('Fetched notes data:', data);
+      console.log('Successfully fetched notes with profiles:', data);
 
       return data.map((item): ParameterNote => ({
         id: item.id,
@@ -85,7 +127,8 @@ export const useParameterHistory = (parameterId: string) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
 
-      console.log('Adding note:', noteText, 'for parameter:', parameterId);
+      console.log('=== ADDING NOTE DEBUG ===');
+      console.log('Adding note:', noteText, 'for parameter:', parameterId, 'by user:', user.id);
 
       const { data, error } = await supabase
         .from('parameter_notes')
@@ -106,9 +149,13 @@ export const useParameterHistory = (parameterId: string) => {
       return data;
     },
     onSuccess: () => {
+      console.log('Note add success - invalidating queries and refetching');
       // Invalidate and refetch the notes
       queryClient.invalidateQueries({ queryKey: ['parameter-notes', parameterId] });
-      refetchNotes();
+      // Force immediate refetch
+      setTimeout(() => {
+        refetchNotes();
+      }, 100);
       toast({
         title: "Success",
         description: "Note added successfully",
@@ -139,7 +186,9 @@ export const useParameterHistory = (parameterId: string) => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['parameter-notes', parameterId] });
-      refetchNotes();
+      setTimeout(() => {
+        refetchNotes();
+      }, 100);
       toast({
         title: "Success",
         description: "Note updated successfully",
@@ -166,7 +215,9 @@ export const useParameterHistory = (parameterId: string) => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['parameter-notes', parameterId] });
-      refetchNotes();
+      setTimeout(() => {
+        refetchNotes();
+      }, 100);
       toast({
         title: "Success",
         description: "Note deleted successfully",
