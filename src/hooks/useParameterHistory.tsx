@@ -1,3 +1,4 @@
+
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -28,25 +29,12 @@ export const useParameterHistory = (parameterId: string) => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Fetch parameter history
+  // Since parameter_history table doesn't exist, return empty array for now
   const { data: history = [], isLoading: isLoadingHistory } = useQuery({
     queryKey: ['parameter-history', parameterId],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('parameter_history')
-        .select(`
-          *,
-          profiles:user_id(full_name)
-        `)
-        .eq('parameter_id', parameterId)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-
-      return data.map((item): ParameterHistory => ({
-        ...item,
-        user_name: item.profiles?.full_name || 'Unknown User'
-      }));
+      // Return empty array since parameter_history table doesn't exist
+      return [];
     },
     enabled: !!parameterId,
   });
@@ -59,7 +47,7 @@ export const useParameterHistory = (parameterId: string) => {
         .from('parameter_notes')
         .select(`
           *,
-          profiles:user_id(full_name)
+          user_profile:user_id(full_name)
         `)
         .eq('parameter_id', parameterId)
         .order('created_at', { ascending: false });
@@ -68,7 +56,7 @@ export const useParameterHistory = (parameterId: string) => {
 
       return data.map((item): ParameterNote => ({
         ...item,
-        user_name: item.profiles?.full_name || 'Unknown User'
+        user_name: (item.user_profile as any)?.full_name || 'Unknown User'
       }));
     },
     enabled: !!parameterId,

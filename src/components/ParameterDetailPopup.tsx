@@ -147,7 +147,7 @@ export const ParameterDetailPopup = ({ parameter, isOpen, onClose }: ParameterDe
         id: 'synth-created',
         parameter_id: parameter.id,
         user_id: parameter.user_id,
-        action: 'created',
+        action: 'created' as const,
         field_name: 'all',
         old_value: null,
         new_value: null,
@@ -468,7 +468,7 @@ export const ParameterDetailPopup = ({ parameter, isOpen, onClose }: ParameterDe
       </Dialog>
 
       {/* Edit Parameter Dialog */}
-      <Dialog open={isEditDialogOpen} onChange={setIsEditDialogOpen}>
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent className="sm:max-w-md bg-gray-800 border-gray-700">
           <DialogHeader>
             <DialogTitle className="text-white">Edit Parameter</DialogTitle>
