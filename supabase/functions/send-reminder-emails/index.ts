@@ -63,56 +63,279 @@ function generateEmailTemplate(reminder: ReminderWithDetails, recipientName: str
   const expiryDate = new Date(reminder.statutory_parameters.expiry_date).toLocaleDateString('en-GB');
   const reminderDate = new Date(reminder.reminder_date).toLocaleDateString('en-GB');
   
-  const subject = `Reminder: ${reminder.statutory_parameters.name} is expiring`;
+  const subject = `License Renewal Required: ${reminder.statutory_parameters.name}`;
   
   const htmlContent = `
     <!DOCTYPE html>
-    <html>
+    <html lang="en">
     <head>
       <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>License Renewal Reminder</title>
       <style>
-        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-        .header { background: #1e3a8a; color: white; padding: 20px; text-align: center; }
-        .content { padding: 20px; background: #f9f9f9; }
-        .alert { background: #fef3c7; border: 1px solid #f59e0b; padding: 15px; border-radius: 5px; margin: 15px 0; }
-        .footer { text-align: center; padding: 20px; font-size: 12px; color: #666; }
+        * {
+          margin: 0;
+          padding: 0;
+          box-sizing: border-box;
+        }
+        body {
+          font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+          background-color: #f8fafc;
+          color: #1e293b;
+          line-height: 1.6;
+        }
+        .email-container {
+          max-width: 600px;
+          margin: 0 auto;
+          background: #ffffff;
+          box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+          border-radius: 12px;
+          overflow: hidden;
+        }
+        .header {
+          background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
+          color: white;
+          padding: 32px 24px;
+          text-align: center;
+        }
+        .header h1 {
+          font-size: 28px;
+          font-weight: 700;
+          margin-bottom: 8px;
+          letter-spacing: -0.025em;
+        }
+        .header p {
+          font-size: 16px;
+          opacity: 0.9;
+        }
+        .content {
+          padding: 32px 24px;
+        }
+        .greeting {
+          font-size: 18px;
+          margin-bottom: 24px;
+          color: #374151;
+        }
+        .alert-card {
+          background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+          border: 1px solid #f87171;
+          border-radius: 8px;
+          padding: 20px;
+          margin: 24px 0;
+          position: relative;
+          overflow: hidden;
+        }
+        .alert-card::before {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 4px;
+          height: 100%;
+          background: #dc2626;
+        }
+        .alert-title {
+          font-size: 20px;
+          font-weight: 700;
+          color: #dc2626;
+          margin-bottom: 12px;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+        .alert-message {
+          font-size: 16px;
+          color: #991b1b;
+          font-weight: 500;
+        }
+        .details-card {
+          background: #f8fafc;
+          border: 1px solid #e2e8f0;
+          border-radius: 8px;
+          padding: 24px;
+          margin: 24px 0;
+        }
+        .details-title {
+          font-size: 18px;
+          font-weight: 600;
+          color: #1e293b;
+          margin-bottom: 16px;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+        .details-list {
+          list-style: none;
+          space-y: 12px;
+        }
+        .details-list li {
+          display: flex;
+          justify-content: space-between;
+          padding: 8px 0;
+          border-bottom: 1px solid #e2e8f0;
+        }
+        .details-list li:last-child {
+          border-bottom: none;
+        }
+        .detail-label {
+          font-weight: 600;
+          color: #475569;
+        }
+        .detail-value {
+          color: #1e293b;
+          font-weight: 500;
+        }
+        .custom-message {
+          background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+          border: 1px solid #60a5fa;
+          border-radius: 8px;
+          padding: 20px;
+          margin: 24px 0;
+          position: relative;
+        }
+        .custom-message::before {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 4px;
+          height: 100%;
+          background: #3b82f6;
+        }
+        .custom-message h4 {
+          font-size: 16px;
+          font-weight: 600;
+          color: #1e40af;
+          margin-bottom: 8px;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+        .custom-message p {
+          color: #1e40af;
+          font-weight: 500;
+        }
+        .cta-section {
+          text-align: center;
+          margin: 32px 0;
+        }
+        .cta-button {
+          display: inline-block;
+          background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
+          color: white;
+          text-decoration: none;
+          padding: 16px 32px;
+          border-radius: 8px;
+          font-weight: 700;
+          font-size: 16px;
+          letter-spacing: 0.025em;
+          box-shadow: 0 4px 14px rgba(59, 130, 246, 0.4);
+          transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .cta-button:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 8px 25px rgba(59, 130, 246, 0.5);
+        }
+        .urgency-text {
+          font-size: 16px;
+          color: #374151;
+          margin: 24px 0;
+          text-align: center;
+        }
+        .footer {
+          background: #f8fafc;
+          padding: 24px;
+          text-align: center;
+          border-top: 1px solid #e2e8f0;
+        }
+        .footer p {
+          font-size: 14px;
+          color: #6b7280;
+          margin-bottom: 8px;
+        }
+        .footer .brand {
+          font-weight: 700;
+          color: #1e3a8a;
+        }
+        @media (max-width: 600px) {
+          .email-container {
+            margin: 0;
+            border-radius: 0;
+          }
+          .header, .content, .footer {
+            padding-left: 16px;
+            padding-right: 16px;
+          }
+        }
       </style>
     </head>
     <body>
-      <div class="container">
+      <div class="email-container">
         <div class="header">
-          <h1>📋 License Expiry Reminder</h1>
+          <h1>📋 License Renewal Required</h1>
+          <p>StatMonitor - Your Compliance Partner</p>
         </div>
+        
         <div class="content">
-          <p>Hi ${recipientName || 'there'},</p>
-          
-          <div class="alert">
-            <h3>⚠️ Important Reminder</h3>
-            <p>Your license <strong>${reminder.statutory_parameters.name}</strong> is expiring on <strong>${expiryDate}</strong>.</p>
+          <div class="greeting">
+            Hello ${recipientName || 'Team Member'},
           </div>
           
-          <h3>📊 License Details:</h3>
-          <ul>
-            <li><strong>Name:</strong> ${reminder.statutory_parameters.name}</li>
-            <li><strong>Category:</strong> ${reminder.statutory_parameters.category}</li>
-            <li><strong>Expiry Date:</strong> ${expiryDate}</li>
-            ${reminder.statutory_parameters.description ? `<li><strong>Description:</strong> ${reminder.statutory_parameters.description}</li>` : ''}
-          </ul>
+          <div class="alert-card">
+            <div class="alert-title">
+              ⚠️ Action Required
+            </div>
+            <div class="alert-message">
+              Your license <strong>${reminder.statutory_parameters.name}</strong> expires on <strong>${expiryDate}</strong>
+            </div>
+          </div>
+          
+          <div class="details-card">
+            <div class="details-title">
+              📊 License Information
+            </div>
+            <ul class="details-list">
+              <li>
+                <span class="detail-label">License Name:</span>
+                <span class="detail-value">${reminder.statutory_parameters.name}</span>
+              </li>
+              <li>
+                <span class="detail-label">Category:</span>
+                <span class="detail-value">${reminder.statutory_parameters.category}</span>
+              </li>
+              <li>
+                <span class="detail-label">Expiry Date:</span>
+                <span class="detail-value">${expiryDate}</span>
+              </li>
+              ${reminder.statutory_parameters.description ? `
+              <li>
+                <span class="detail-label">Description:</span>
+                <span class="detail-value">${reminder.statutory_parameters.description}</span>
+              </li>` : ''}
+            </ul>
+          </div>
           
           ${reminder.custom_message ? `
-          <div style="background: #dbeafe; border: 1px solid #60a5fa; padding: 15px; border-radius: 5px; margin: 15px 0;">
-            <h4>📝 Note:</h4>
+          <div class="custom-message">
+            <h4>📝 Additional Note</h4>
             <p>${reminder.custom_message}</p>
           </div>` : ''}
           
-          <p>Please take the necessary action to renew this license before it expires.</p>
+          <div class="cta-section">
+            <a href="https://statmonitor.vercel.app/parameters" class="cta-button">
+              🔄 Renew License Now
+            </a>
+          </div>
           
-          <p>Best regards,<br>
-          Dairy License Reminder System</p>
+          <div class="urgency-text">
+            Don't let your license expire! Take action today to maintain compliance and avoid potential penalties.
+          </div>
         </div>
+        
         <div class="footer">
-          <p>This is an automated reminder. Please do not reply to this email.</p>
+          <p>This is an automated reminder from <span class="brand">StatMonitor</span></p>
+          <p>Need help? Contact your administrator or reply to this email.</p>
+          <p style="margin-top: 12px; font-size: 12px;">© 2024 StatMonitor. All rights reserved.</p>
         </div>
       </div>
     </body>
@@ -120,24 +343,29 @@ function generateEmailTemplate(reminder: ReminderWithDetails, recipientName: str
   `;
   
   const textContent = `
-    License Expiry Reminder
+    License Renewal Required - StatMonitor
     
-    Hi ${recipientName || 'there'},
+    Hello ${recipientName || 'Team Member'},
     
-    This is a reminder that your license "${reminder.statutory_parameters.name}" is expiring on ${expiryDate}.
+    This is an important reminder that your license "${reminder.statutory_parameters.name}" expires on ${expiryDate}.
     
     License Details:
-    - Name: ${reminder.statutory_parameters.name}
-    - Category: ${reminder.statutory_parameters.category}
-    - Expiry Date: ${expiryDate}
-    ${reminder.statutory_parameters.description ? `- Description: ${reminder.statutory_parameters.description}` : ''}
+    • Name: ${reminder.statutory_parameters.name}
+    • Category: ${reminder.statutory_parameters.category}
+    • Expiry Date: ${expiryDate}
+    ${reminder.statutory_parameters.description ? `• Description: ${reminder.statutory_parameters.description}` : ''}
     
-    ${reminder.custom_message ? `Note: ${reminder.custom_message}` : ''}
+    ${reminder.custom_message ? `Additional Note: ${reminder.custom_message}` : ''}
     
-    Please take the necessary action to renew this license before it expires.
+    RENEW NOW: https://statmonitor.vercel.app/parameters
+    
+    Don't let your license expire! Take action today to maintain compliance.
     
     Best regards,
-    Dairy License Reminder System
+    StatMonitor Team
+    
+    ---
+    This is an automated reminder. Need help? Contact your administrator.
   `;
   
   return { subject, htmlContent, textContent };
@@ -377,7 +605,7 @@ const handler = async (req: Request): Promise<Response> => {
       }
     }
 
-    // Send parameter expiry notifications
+    // Send parameter expiry notifications with updated design
     for (const param of expiringParams || []) {
       try {
         // Get all users from the same dairy unit
@@ -398,58 +626,25 @@ const handler = async (req: Request): Promise<Response> => {
         }
         for (const user of usersWithEmails) {
           try {
-            // Generate parameter expiry email content
-            const expiryDate = new Date(param.expiry_date).toLocaleDateString('en-GB');
-            const subject = `License Expiry Alert: ${param.name} expires on ${expiryDate}`;
-            const htmlContent = `
-              <!DOCTYPE html>
-              <html>
-              <head>
-                <meta charset="utf-8">
-                <style>
-                  body { font-family: Arial, sans-serif; background: #f4f6fa; color: #222; margin: 0; }
-                  .container { max-width: 600px; margin: 0 auto; background: #fff; border-radius: 10px; overflow: hidden; box-shadow: 0 2px 8px #0001; }
-                  .header { background: #1e3a8a; color: #fff; padding: 24px 24px 12px 24px; text-align: center; }
-                  .alert { background: #fee2e2; color: #b91c1c; border-left: 6px solid #ef4444; padding: 16px; margin: 24px 0 16px 0; border-radius: 6px; }
-                  .details { background: #f1f5f9; border-radius: 6px; padding: 16px; margin-bottom: 24px; }
-                  .details ul { list-style: none; padding: 0; margin: 0; }
-                  .details li { margin-bottom: 8px; }
-                  .cta { display: block; width: fit-content; margin: 0 auto 24px auto; background: #1e3a8a; color: #fff; text-decoration: none; padding: 12px 32px; border-radius: 6px; font-weight: bold; }
-                  .footer { text-align: center; color: #888; font-size: 12px; padding: 16px 24px; background: #f9fafb; }
-                </style>
-              </head>
-              <body>
-                <div class="container">
-                  <div class="header">
-                    <h1>⚠️ License Expiry Alert</h1>
-                    <p style="margin: 0; font-size: 1.1em;">StatMonitor Notification</p>
-                  </div>
-                  <div class="alert">
-                    <strong>Action Required:</strong> Your license <b>${param.name}</b> is expiring on <b>${expiryDate}</b>.
-                  </div>
-                  <div style="padding: 0 24px;">
-                    <p>Hi ${user.name},</p>
-                    <div class="details">
-                      <ul>
-                        <li><strong>Name:</strong> ${param.name}</li>
-                        <li><strong>Category:</strong> ${param.category}</li>
-                        <li><strong>Expiry Date:</strong> ${expiryDate}</li>
-                        ${param.description ? `<li><strong>Description:</strong> ${param.description}</li>` : ''}
-                      </ul>
-                    </div>
-                    <a href="https://statmonitor.vercel.app/parameters" class="cta">Renew Now</a>
-                    <p style="margin-bottom: 0;">Please renew this license as soon as possible to avoid compliance issues.</p>
-                  </div>
-                  <div class="footer">
-                    This is an automated reminder from StatMonitor.<br>
-                    Need help? Contact your admin or reply to this email.
-                  </div>
-                </div>
-              </body>
-              </html>
-            `;
-            const textContent = `Hi ${user.name},\nYour parameter ${param.name} is expiring on ${expiryDate}. Please renew it to avoid compliance issues.`;
-            const emailResult = await sendEmailWithResend(user.email, subject, htmlContent, textContent);
+            // Create a reminder-like object for parameter expiry notifications
+            const fakeReminder = {
+              id: `param-${param.id}`,
+              parameter_id: param.id,
+              dairy_unit_id: param.dairy_unit_id,
+              reminder_date: currentDate,
+              reminder_time: '10:00',
+              custom_message: 'This license is expiring soon. Please renew it to maintain compliance.',
+              statutory_parameters: {
+                name: param.name,
+                category: param.category,
+                expiry_date: param.expiry_date,
+                description: param.description
+              }
+            };
+            
+            // Generate professional email content using the same template
+            const emailTemplate = generateEmailTemplate(fakeReminder, user.name);
+            const emailResult = await sendEmailWithResend(user.email, emailTemplate.subject, emailTemplate.htmlContent, emailTemplate.textContent);
             console.log(`Parameter expiry email sent to ${user.email}:`, emailResult);
             await new Promise(resolve => setTimeout(resolve, 2000));
           } catch (emailError) {
