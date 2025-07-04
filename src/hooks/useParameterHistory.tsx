@@ -39,18 +39,19 @@ export const useParameterHistory = (parameterId: string) => {
     enabled: !!parameterId,
   });
 
-  // Fetch parameter notes with debugging
+  // Fetch parameter notes with proper user name resolution
   const { data: notes = [], isLoading: isLoadingNotes, refetch: refetchNotes } = useQuery({
     queryKey: ['parameter-notes', parameterId],
     queryFn: async () => {
       console.log('=== FETCHING NOTES DEBUG ===');
       console.log('Parameter ID:', parameterId);
       
-      // First, let's check if there are any notes for this parameter at all
+      // First, get the notes
       const { data: rawNotes, error: rawError } = await supabase
         .from('parameter_notes')
         .select('*')
-        .eq('parameter_id', parameterId);
+        .eq('parameter_id', parameterId)
+        .order('created_at', { ascending: false });
       
       console.log('Raw notes from DB:', rawNotes);
       console.log('Raw notes error:', rawError);
@@ -65,58 +66,42 @@ export const useParameterHistory = (parameterId: string) => {
         return [];
       }
       
-      // Now fetch with profile join
-      const { data, error } = await supabase
-        .from('parameter_notes')
-        .select(`
-          id,
-          parameter_id,
-          user_id,
-          note_text,
-          created_at,
-          updated_at,
-          profiles!inner(full_name)
-        `)
-        .eq('parameter_id', parameterId)
-        .order('created_at', { ascending: false });
-
-      if (error) {
-        console.error('Error fetching notes with profiles:', error);
-        // If profile join fails, let's try without it
-        const { data: simpleData, error: simpleError } = await supabase
-          .from('parameter_notes')
-          .select('*')
-          .eq('parameter_id', parameterId)
-          .order('created_at', { ascending: false });
-        
-        if (simpleError) {
-          console.error('Error fetching simple notes:', simpleError);
-          throw simpleError;
-        }
-        
-        console.log('Using simple notes without profile join:', simpleData);
-        return simpleData.map((item): ParameterNote => ({
-          id: item.id,
-          parameter_id: item.parameter_id,
-          user_id: item.user_id,
-          note_text: item.note_text,
-          created_at: item.created_at,
-          updated_at: item.updated_at,
-          user_name: 'Unknown User'
-        }));
+      // Get unique user IDs from notes
+      const userIds = [...new Set(rawNotes.map(note => note.user_id))];
+      
+      // Fetch user profiles for these IDs
+      const { data: profiles, error: profileError } = await supabase
+        .from('profiles')
+        .select('id, full_name')
+        .in('id', userIds);
+      
+      console.log('Fetched profiles:', profiles);
+      
+      if (profileError) {
+        console.warn('Error fetching profiles:', profileError);
       }
-
-      console.log('Successfully fetched notes with profiles:', data);
-
-      return data.map((item): ParameterNote => ({
-        id: item.id,
-        parameter_id: item.parameter_id,
-        user_id: item.user_id,
-        note_text: item.note_text,
-        created_at: item.created_at,
-        updated_at: item.updated_at,
-        user_name: (item.profiles as any)?.full_name || 'Unknown User'
+      
+      // Create a map of user ID to full name
+      const userNameMap = (profiles || []).reduce((acc, profile) => {
+        acc[profile.id] = profile.full_name || 'Unknown User';
+        return acc;
+      }, {} as Record<string, string>);
+      
+      console.log('User name map:', userNameMap);
+      
+      // Map notes with user names
+      const notesWithUserNames = rawNotes.map((note): ParameterNote => ({
+        id: note.id,
+        parameter_id: note.parameter_id,
+        user_id: note.user_id,
+        note_text: note.note_text,
+        created_at: note.created_at,
+        updated_at: note.updated_at,
+        user_name: userNameMap[note.user_id] || 'Unknown User'
       }));
+      
+      console.log('Final notes with user names:', notesWithUserNames);
+      return notesWithUserNames;
     },
     enabled: !!parameterId,
   });

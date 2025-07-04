@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -28,6 +29,7 @@ import { useStatutoryParameters } from '@/hooks/useStatutoryParameters';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { formatDateTime } from '@/lib/dateUtils';
 
 interface ParameterDetailPopupProps {
   parameter: StatutoryParameter;
@@ -328,7 +330,7 @@ export const ParameterDetailPopup = ({ parameter, isOpen, onClose }: ParameterDe
                                     </div>
                                     <div className="flex items-center gap-1">
                                       <TimeIcon className="w-4 h-4" />
-                                      {new Date(item.created_at).toLocaleString()}
+                                      {formatDateTime(item.created_at)}
                                     </div>
                                   </div>
                                 </div>
@@ -429,7 +431,7 @@ export const ParameterDetailPopup = ({ parameter, isOpen, onClose }: ParameterDe
                                       </div>
                                       <div className="flex items-center gap-1">
                                         <TimeIcon className="w-4 h-4" />
-                                        {new Date(note.created_at).toLocaleString()}
+                                        {formatDateTime(note.created_at)}
                                       </div>
                                     </div>
                                     <div className="flex gap-2">
