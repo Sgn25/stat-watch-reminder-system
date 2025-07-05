@@ -15,11 +15,18 @@ jobs:
       - name: Debug Service Role Key Length
         env:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-        run: echo "Key length: ${#SUPABASE_SERVICE_ROLE_KEY}"
+        shell: bash
+        run: |
+          if [ -z "$SUPABASE_SERVICE_ROLE_KEY" ]; then
+            echo "Service Role Key is empty!"
+            exit 1
+          fi
+          echo "Key length: ${#SUPABASE_SERVICE_ROLE_KEY}"
 
       - name: Call Schedule Reminder Check Function
         env:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        shell: bash
         run: |
           echo "Calling schedule-reminder-check function at $(date)"
           echo "Using Supabase URL: https://mnrsqiinquoeeismvnua.supabase.co"
