@@ -13,10 +13,14 @@ jobs:
       - name: Call Schedule Reminder Check Function
         run: |
           echo "Calling schedule-reminder-check function at $(date)"
+          echo "Using Supabase URL: https://mnrsqiinquoeeismvnua.supabase.co"
+          echo "Service Role Key present: $([[ -n "${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" ]] && echo "Yes" || echo "No")"
+          
           response=$(curl -s -w "\nHTTP_STATUS:%{http_code}" -X POST "https://mnrsqiinquoeeismvnua.supabase.co/functions/v1/schedule-reminder-check" \
             -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
             -H "Content-Type: application/json" \
-            -d '{"source": "github-cron", "timestamp": "'$(date -u +%Y-%m-%dT%H:%M:%SZ)'"}')
+            -H "apikey: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -d '{"source": "github-cron", "timestamp": "'$(date -u +%Y-%m-%dT%H:%M:%SZ)'", "timezone": "UTC", "ist_time": "'$(TZ=Asia/Kolkata date)'"}')
           
           http_status=$(echo "$response" | grep "HTTP_STATUS" | cut -d: -f2)
           response_body=$(echo "$response" | sed '/HTTP_STATUS/d')
@@ -26,6 +30,10 @@ jobs:
           
           if [ "$http_status" -ne 200 ]; then
             echo "Error: Function call failed with status $http_status"
+            echo "Full response: $response"
+            if [ "$http_status" -eq 401 ]; then
+              echo "Authentication failed. Please check if SUPABASE_SERVICE_ROLE_KEY is properly set in GitHub secrets."
+            fi
             exit 1
           fi
           
