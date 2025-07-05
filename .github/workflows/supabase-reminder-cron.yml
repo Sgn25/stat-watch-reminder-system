@@ -1,9 +1,10 @@
+
 name: Daily Supabase Reminder
 
 on:
   schedule:
-    - cron: '0 4 * * *' # 4:00 UTC = 10:00 AM IST (adjust as needed)
-  workflow_dispatch:      # <-- Indented to match 'schedule:'
+    - cron: '0 5 * * *' # 5:00 UTC = 10:30 AM IST
+  workflow_dispatch:
 
 jobs:
   call-supabase-function:
