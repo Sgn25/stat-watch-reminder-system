@@ -29,12 +29,30 @@ export const useParameterHistory = (parameterId: string) => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Since parameter_history table doesn't exist, return empty array for now
-  const { data: history = [], isLoading: isLoadingHistory } = useQuery({
+  // Fetch parameter update history
+  const { data: history = [], isLoading: isLoadingHistory, refetch: refetchHistory } = useQuery({
     queryKey: ['parameter-history', parameterId],
     queryFn: async () => {
-      // Return empty array since parameter_history table doesn't exist
-      return [];
+      const { data: rawHistory, error: rawError } = await supabase
+        .from('parameter_history')
+        .select('*')
+        .eq('parameter_id', parameterId)
+        .order('created_at', { ascending: true });
+      if (rawError) throw rawError;
+      if (!rawHistory || rawHistory.length === 0) return [];
+      // Get unique user IDs
+      const userIds = [...new Set(rawHistory.map(h => h.user_id))];
+      // Fetch user profiles
+      const { data: profiles, error: profileError } = await supabase
+        .from('profiles')
+        .select('id, full_name')
+        .in('id', userIds);
+      const userNameMap = (profiles || []).reduce((acc, profile) => {
+        acc[profile.id] = profile.full_name || 'Unknown User';
+        return acc;
+      }, {} as Record<string, string>);
+      // Map history with user names
+      return rawHistory.map((h: any) => ({ ...h, user_name: userNameMap[h.user_id] || 'Unknown User' }));
     },
     enabled: !!parameterId,
   });
@@ -217,16 +235,23 @@ export const useParameterHistory = (parameterId: string) => {
     },
   });
 
+  // Add a helper to refetch history after parameter changes
+  const refetchAll = () => {
+    refetchHistory();
+    refetchNotes();
+  };
+
   return {
     history,
-    notes,
     isLoadingHistory,
+    notes,
     isLoadingNotes,
-    addNote: (noteText: string) => addNoteMutation.mutate(noteText),
+    addNote: addNoteMutation.mutate,
     updateNote: updateNoteMutation.mutate,
     deleteNote: deleteNoteMutation.mutate,
-    isAddingNote: addNoteMutation.isPending,
-    isUpdatingNote: updateNoteMutation.isPending,
-    isDeletingNote: deleteNoteMutation.isPending,
+    isAddingNote: addNoteMutation.isLoading,
+    isUpdatingNote: updateNoteMutation.isLoading,
+    isDeletingNote: deleteNoteMutation.isLoading,
+    refetchAll,
   };
 };

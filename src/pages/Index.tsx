@@ -5,10 +5,9 @@ import { ParameterCard } from '@/components/ParameterCard';
 import { AddParameterForm } from '@/components/AddParameterForm';
 import { SearchBar } from '@/components/SearchBar';
 import { CategoryFilter } from '@/components/CategoryFilter';
-import { ExpirationChart } from '@/components/ExpirationChart';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { Button } from '@/components/ui/button';
-import { Plus, LayoutDashboard, FileText, Bell, Building2 } from 'lucide-react';
+import { Plus, LayoutDashboard, FileText, Bell, Building2, LayoutGrid, List as ListIcon } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useStatutoryParameters } from '@/hooks/useStatutoryParameters';
 import { useUserProfile } from '@/hooks/useUserProfile';
@@ -21,6 +20,7 @@ const Index = () => {
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [selectedStatus, setSelectedStatus] = useState<'all' | 'valid' | 'warning' | 'expired'>('all');
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
   const categories = ['All', 'License', 'Certificate', 'Permit', 'Registration', 'Compliance', 'Insurance'];
 
@@ -42,6 +42,8 @@ const Index = () => {
   };
 
   const statusCounts = getStatusCounts();
+  const complianceScore = statusCounts.total > 0 ? Math.round((statusCounts.valid / statusCounts.total) * 100) : 0;
+  const complianceFraction = statusCounts.total > 0 ? statusCounts.valid / statusCounts.total : 0;
 
   const handleStatusFilter = (status: 'all' | 'valid' | 'warning' | 'expired') => {
     setSelectedStatus(status);
@@ -159,16 +161,51 @@ const Index = () => {
             </div>
           </div>
 
-          {/* Chart Section */}
-          <div className="bg-gray-800 p-6 rounded-lg shadow-lg border border-gray-700">
-            <h2 className="text-lg font-semibold text-white mb-4">Expiration Timeline</h2>
-            <ExpirationChart parameters={parameters} />
+          {/* Remove ExpirationChart section and add compliance score pie */}
+          <div className="bg-gray-800 p-6 rounded-lg shadow-lg border border-gray-700 flex flex-col items-center justify-center">
+            <h2 className="text-lg font-semibold text-white mb-4">Dairy Compliance Overall Score</h2>
+            <div className="relative w-40 h-40 flex items-center justify-center">
+              <svg className="w-full h-full" viewBox="0 0 120 120">
+                <circle cx="60" cy="60" r="54" fill="#23272f" stroke="#374151" strokeWidth="4" />
+                <circle
+                  cx="60" cy="60" r="54"
+                  fill="none"
+                  stroke="#2563eb"
+                  strokeWidth="10"
+                  strokeDasharray={339.292}
+                  strokeDashoffset={339.292 * (1 - complianceFraction)}
+                  strokeLinecap="round"
+                  style={{ transition: 'stroke-dashoffset 1s cubic-bezier(.4,2,.6,1)' }}
+                />
+              </svg>
+              <div className="absolute inset-0 flex flex-col items-center justify-center">
+                <span className="text-4xl font-bold text-blue-400">{complianceScore}%</span>
+                <span className="text-gray-400 text-sm mt-1">Compliant</span>
+              </div>
+            </div>
+            <p className="text-gray-400 mt-4 text-center">This score reflects the percentage of statutory parameters that are currently valid in your dairy unit.</p>
           </div>
 
           {/* Search and Filter Controls */}
-          <div className="flex flex-col md:flex-row gap-4">
+          <div className="flex flex-col md:flex-row gap-4 items-center">
             <div className="flex-1">
               <SearchBar searchTerm={searchTerm} onSearchChange={setSearchTerm} />
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                className={`p-2 rounded ${viewMode === 'grid' ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-300'}`}
+                onClick={() => setViewMode('grid')}
+                aria-label="Grid view"
+              >
+                <LayoutGrid className="w-5 h-5" />
+              </button>
+              <button
+                className={`p-2 rounded ${viewMode === 'list' ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-300'}`}
+                onClick={() => setViewMode('list')}
+                aria-label="List view"
+              >
+                <ListIcon className="w-5 h-5" />
+              </button>
             </div>
             <div className="md:w-48">
               <CategoryFilter 
@@ -179,12 +216,20 @@ const Index = () => {
             </div>
           </div>
 
-          {/* Parameters Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredParameters.map(parameter => (
-              <ParameterCard key={parameter.id} parameter={parameter} />
-            ))}
-          </div>
+          {/* Parameters Grid/List */}
+          {viewMode === 'grid' ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredParameters.map(parameter => (
+                <ParameterCard key={parameter.id} parameter={parameter} />
+              ))}
+            </div>
+          ) : (
+            <div className="divide-y divide-gray-700 bg-gray-800 rounded-lg shadow-lg border border-gray-700">
+              {filteredParameters.map(parameter => (
+                <ParameterCard key={parameter.id} parameter={parameter} viewMode="list" />
+              ))}
+            </div>
+          )}
 
           {filteredParameters.length === 0 && !isLoading && (
             <div className="text-center py-12">

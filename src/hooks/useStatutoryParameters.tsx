@@ -32,7 +32,26 @@ const calculateStatus = (expiryDate: string) => {
   return { status, daysUntilExpiry };
 };
 
-export const useStatutoryParameters = () => {
+// Helper to log parameter history
+async function logParameterHistory({ parameterId, userId, action, fieldName, oldValue, newValue }: {
+  parameterId: string;
+  userId: string;
+  action: 'created' | 'updated' | 'deleted';
+  fieldName?: string;
+  oldValue?: string;
+  newValue?: string;
+}) {
+  await supabase.from('parameter_history').insert({
+    parameter_id: parameterId,
+    user_id: userId,
+    action,
+    field_name: fieldName || null,
+    old_value: oldValue || null,
+    new_value: newValue || null,
+  });
+}
+
+export const useStatutoryParameters = (options?: { refetchHistory?: () => void }) => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { profile } = useUserProfile();
@@ -86,10 +105,13 @@ export const useStatutoryParameters = () => {
         .single();
 
       if (error) throw error;
+      // Log creation in history
+      await logParameterHistory({ parameterId: data.id, userId: user.id, action: 'created' });
       return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['statutory-parameters'] });
+      if (options?.refetchHistory) options.refetchHistory();
       toast({
         title: "Success",
         description: "Parameter added successfully",
@@ -107,18 +129,36 @@ export const useStatutoryParameters = () => {
   // Update parameter mutation
   const updateParameterMutation = useMutation({
     mutationFn: async ({ id, ...updates }: Partial<StatutoryParameter> & { id: string }) => {
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('User not authenticated');
+      // Fetch old parameter for diff
+      const { data: oldParam } = await supabase.from('statutory_parameters').select('*').eq('id', id).single();
       const { data, error } = await supabase
         .from('statutory_parameters')
         .update(updates)
         .eq('id', id)
         .select()
         .single();
-
       if (error) throw error;
+      // Log each changed field
+      for (const key of Object.keys(updates)) {
+        if (oldParam && updates[key] !== oldParam[key]) {
+          await logParameterHistory({
+            parameterId: id,
+            userId: user.id,
+            action: 'updated',
+            fieldName: key,
+            oldValue: oldParam[key]?.toString(),
+            newValue: updates[key]?.toString(),
+          });
+        }
+      }
       return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['statutory-parameters'] });
+      if (options?.refetchHistory) options.refetchHistory();
       toast({
         title: "Success",
         description: "Parameter updated successfully",
@@ -136,15 +176,20 @@ export const useStatutoryParameters = () => {
   // Delete parameter mutation
   const deleteParameterMutation = useMutation({
     mutationFn: async (id: string) => {
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('User not authenticated');
+      // Log deletion in history before deleting
+      await logParameterHistory({ parameterId: id, userId: user.id, action: 'deleted' });
       const { error } = await supabase
         .from('statutory_parameters')
         .delete()
         .eq('id', id);
-
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['statutory-parameters'] });
+      if (options?.refetchHistory) options.refetchHistory();
       toast({
         title: "Success",
         description: "Parameter deleted successfully",

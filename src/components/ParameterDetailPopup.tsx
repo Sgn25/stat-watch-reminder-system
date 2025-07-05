@@ -114,7 +114,8 @@ export const ParameterDetailPopup = ({ parameter, isOpen, onClose }: ParameterDe
     deleteNote,
     isAddingNote,
     isUpdatingNote,
-    isDeletingNote
+    isDeletingNote,
+    refetchAll,
   } = useParameterHistory(parameter.id);
   const { profile } = useUserProfile();
   const [creatorName, setCreatorName] = useState<string>('Unknown User');
@@ -158,6 +159,29 @@ export const ParameterDetailPopup = ({ parameter, isOpen, onClose }: ParameterDe
       },
     ];
   }
+
+  // Realtime subscription for parameter_history
+  useEffect(() => {
+    if (!parameter.id) return;
+    const channel = supabase
+      .channel('parameter-history-realtime-' + parameter.id)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'parameter_history',
+          filter: `parameter_id=eq.${parameter.id}`,
+        },
+        () => {
+          refetchAll && refetchAll();
+        }
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [parameter.id]);
 
   const badge = getStatusAndBadge(parameter.daysUntilExpiry);
   const daysText = getDaysRemainingText(parameter.daysUntilExpiry);
@@ -314,17 +338,26 @@ export const ParameterDetailPopup = ({ parameter, isOpen, onClose }: ParameterDe
                             <p className="text-gray-400">No update history available</p>
                           </div>
                         ) : (
-                          <div className="space-y-3">
-                            {displayHistory.map((item) => (
-                              <div key={item.id} className="bg-gray-700 p-4 rounded-lg border border-gray-600">
-                                <div className="flex items-start justify-between">
-                                  <div className="flex-1">
-                                    <p className="text-white font-medium">
-                                      {item.action === 'created' ? 'Parameter created' : 
-                                       item.action === 'updated' ? 'Parameter updated' : 
-                                       'Parameter deleted'}
-                                    </p>
-                                    <div className="flex items-center gap-4 mt-2 text-sm text-gray-400">
+                          <div className="relative pl-8">
+                            {/* Vertical line */}
+                            <div className="absolute left-2 top-0 bottom-0 w-1 bg-gray-600 rounded-full" style={{ zIndex: 0 }} />
+                            <div className="space-y-6">
+                              {displayHistory.map((item, idx) => (
+                                <div key={item.id} className="relative flex items-start group">
+                                  {/* Timeline dot */}
+                                  <div className="absolute left-[-18px] top-2 w-4 h-4 rounded-full border-2 border-blue-400 bg-gray-900 z-10 flex items-center justify-center">
+                                    <span className="block w-2 h-2 rounded-full bg-blue-400"></span>
+                                  </div>
+                                  <div className="bg-gray-700 p-4 rounded-lg border border-gray-600 flex-1 ml-2">
+                                    <div className="flex items-center gap-2 mb-1">
+                                      <span className="font-semibold text-white">
+                                        {item.action === 'created' ? 'Parameter created' : item.action === 'updated' ? 'Parameter updated' : 'Parameter deleted'}
+                                      </span>
+                                      <Badge variant="outline" className="text-xs ml-2">
+                                        {item.action}
+                                      </Badge>
+                                    </div>
+                                    <div className="flex items-center gap-4 text-sm text-gray-400">
                                       <div className="flex items-center gap-1">
                                         <User className="w-4 h-4" />
                                         {item.user_name || 'Unknown User'}
@@ -335,12 +368,9 @@ export const ParameterDetailPopup = ({ parameter, isOpen, onClose }: ParameterDe
                                       </div>
                                     </div>
                                   </div>
-                                  <Badge variant="outline" className="text-xs">
-                                    {item.action}
-                                  </Badge>
                                 </div>
-                              </div>
-                            ))}
+                              ))}
+                            </div>
                           </div>
                         )}
                       </ScrollArea>
