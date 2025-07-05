@@ -82,11 +82,6 @@ const handler = async (req: Request): Promise<Response> => {
           category,
           expiry_date,
           dairy_unit_id
-        ),
-        profiles!inner (
-          id,
-          full_name,
-          dairy_unit_id
         )
       `)
       .eq('reminder_date', today)
@@ -104,9 +99,67 @@ const handler = async (req: Request): Promise<Response> => {
           try {
             console.log(`Processing user reminder: ${reminder.id} for parameter: ${reminder.statutory_parameters?.name}`);
             
-            // Here you would send the email using Resend or your email service
-            // For now, we'll just mark it as sent and log it
+            // Get user email from auth.users table
+            const { data: userProfile, error: profileError } = await supabase
+              .from('profiles')
+              .select('id, full_name')
+              .eq('id', reminder.user_id)
+              .single();
+
+            // Get user email from auth.users table
+            const { data: authUser, error: authError } = await supabase.auth.admin.getUserById(reminder.user_id);
+
+            if (profileError || !userProfile || authError || !authUser) {
+              console.error(`Error fetching user data for reminder ${reminder.id}:`, profileError || authError);
+              results.userReminders.errors++;
+              continue;
+            }
+
+            // Send email using Resend
+            if (resendApiKey && resendFrom && authUser.user.email) {
+              const emailSubject = `Reminder: ${reminder.statutory_parameters?.name} - ${reminder.reminder_date}`;
+              const emailBody = `
+                <h2>Reminder Notification</h2>
+                <p>Hello ${userProfile.full_name || 'User'},</p>
+                <p>This is a reminder for your statutory parameter:</p>
+                <ul>
+                  <li><strong>Parameter:</strong> ${reminder.statutory_parameters?.name}</li>
+                  <li><strong>Category:</strong> ${reminder.statutory_parameters?.category}</li>
+                  <li><strong>Expiry Date:</strong> ${reminder.statutory_parameters?.expiry_date}</li>
+                  <li><strong>Reminder Date:</strong> ${reminder.reminder_date}</li>
+                </ul>
+                ${reminder.custom_message ? `<p><strong>Custom Message:</strong> ${reminder.custom_message}</p>` : ''}
+                <p>Please take necessary action before the expiry date.</p>
+                <p>Best regards,<br>Stat Watch Reminder System</p>
+              `;
+
+              const emailResponse = await fetch('https://api.resend.com/emails', {
+                method: 'POST',
+                headers: {
+                  'Authorization': `Bearer ${resendApiKey}`,
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  from: resendFrom,
+                  to: authUser.user.email,
+                  subject: emailSubject,
+                  html: emailBody,
+                }),
+              });
+
+              if (!emailResponse.ok) {
+                const errorText = await emailResponse.text();
+                console.error(`Failed to send email for reminder ${reminder.id}:`, errorText);
+                results.userReminders.errors++;
+                continue;
+              }
+
+              console.log(`Email sent successfully for reminder ${reminder.id} to ${authUser.user.email}`);
+            } else {
+              console.log(`Skipping email for reminder ${reminder.id} - missing email configuration or user email`);
+            }
             
+            // Mark reminder as sent
             const { error: updateError } = await supabase
               .from('reminders')
               .update({ is_sent: true, updated_at: new Date().toISOString() })
@@ -143,10 +196,10 @@ const handler = async (req: Request): Promise<Response> => {
       .from('statutory_parameters')
       .select(`
         *,
-        profiles!inner (
+        dairy_units (
           id,
-          full_name,
-          dairy_unit_id
+          name,
+          code
         )
       `)
       .lte('expiry_date', expiryCheckDate)
@@ -164,12 +217,98 @@ const handler = async (req: Request): Promise<Response> => {
           try {
             console.log(`Processing expiry reminder for parameter: ${param.name} (expires: ${param.expiry_date})`);
             
-            // Here you would send the expiry reminder email
-            // For now, we'll just log it
+            // Get users from the same dairy unit for this parameter
+            const { data: dairyUnitUsers, error: usersError } = await supabase
+              .from('profiles')
+              .select('id, full_name')
+              .eq('dairy_unit_id', param.dairy_unit_id);
+
+            if (usersError) {
+              console.error(`Error fetching users for dairy unit ${param.dairy_unit_id}:`, usersError);
+              results.expiryReminders.errors++;
+              continue;
+            }
+
+            // Send expiry reminder emails to all users in the dairy unit
+            for (const user of dairyUnitUsers || []) {
+              // Get user email from auth.users table
+              const { data: authUser, error: authError } = await supabase.auth.admin.getUserById(user.id);
+              
+              if (resendApiKey && resendFrom && authUser?.user?.email) {
+                // Format dates as DD/MM/YYYY
+                function formatDateDMY(dateStr) {
+                  const d = new Date(dateStr);
+                  return d.toLocaleDateString('en-GB');
+                }
+                const expiryDateDMY = formatDateDMY(param.expiry_date);
+                const todayDMY = formatDateDMY(today);
+                const daysUntilExpiry = Math.ceil((new Date(param.expiry_date).getTime() - new Date(today).getTime()) / (1000 * 60 * 60 * 24));
+                const emailSubject = `Urgent ! "${param.name}" expires on "${expiryDateDMY}"`;
+                const emailBody = `
+                  <div style="font-family: Arial, sans-serif; background: #f7f9fb; padding: 0; margin: 0;">
+                    <div style="max-width: 600px; margin: 40px auto; background: #fff; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.07);">
+                      <div style="background: #2563eb; color: #fff; padding: 24px 0; text-align: center;">
+                        <div style="font-size: 28px; font-weight: bold;">License Renewal Required</div>
+                        <div style="font-size: 15px; margin-top: 4px;">StatMonitor - Your Compliance Partner</div>
+                      </div>
+                      <div style="padding: 32px 32px 24px 32px;">
+                        <div style="font-size: 17px; margin-bottom: 16px;">Hello, ${user.full_name || 'User'},</div>
+                        <div style="background: #fee2e2; color: #b91c1c; border-radius: 8px; padding: 16px; margin-bottom: 24px;">
+                          <div style="font-weight: bold; font-size: 16px; margin-bottom: 4px;">⚠️ Action Required</div>
+                          <div>Your license <b>${param.name}</b> expires on <b>${expiryDateDMY}</b></div>
+                        </div>
+                        <div style="background: #f1f5f9; border-radius: 8px; padding: 16px; margin-bottom: 24px;">
+                          <div style="font-weight: bold; font-size: 16px; margin-bottom: 8px;">📄 License Information</div>
+                          <div><b>License Name:</b> ${param.name}</div>
+                          <div><b>Category:</b> ${param.category}</div>
+                          <div><b>Expiry Date:</b> ${expiryDateDMY}</div>
+                        </div>
+                        <div style="background: #e0edff; border-radius: 8px; padding: 16px; margin-bottom: 24px;">
+                          <div style="font-weight: bold; font-size: 15px; margin-bottom: 4px;">ℹ️ Additional Note</div>
+                          <div>This license expires in <b>${daysUntilExpiry} days</b>. Please renew it to maintain compliance.</div>
+                        </div>
+                        <div style="text-align: center; margin-bottom: 24px;">
+                          <a href="#" style="background: #2563eb; color: #fff; padding: 12px 28px; border-radius: 6px; text-decoration: none; font-weight: bold; font-size: 16px;">Renew License Now</a>
+                        </div>
+                        <div style="font-size: 14px; color: #374151;">Don't let your license expire! Take action today to maintain compliance and avoid potential penalties.</div>
+                      </div>
+                      <div style="background: #f1f5f9; color: #64748b; font-size: 13px; text-align: center; padding: 18px 0;">
+                        This is an automated reminder from <b>StatMonitor</b><br>
+                        Need help? Contact your administrator or reply to this email.<br>
+                        © 2024 StatMonitor. All rights reserved.<br>
+                        <a href="#" style="color: #2563eb;">Unsubscribe from these emails</a>
+                      </div>
+                    </div>
+                  </div>
+                `;
+                const emailResponse = await fetch('https://api.resend.com/emails', {
+                  method: 'POST',
+                  headers: {
+                    'Authorization': `Bearer ${resendApiKey}`,
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify({
+                    from: resendFrom,
+                    to: authUser.user.email,
+                    subject: emailSubject,
+                    html: emailBody,
+                  }),
+                });
+                if (!emailResponse.ok) {
+                  const errorText = await emailResponse.text();
+                  console.error(`Failed to send expiry email for parameter ${param.id} to ${authUser.user.email}:`, errorText);
+                  results.expiryReminders.errors++;
+                } else {
+                  console.log(`Expiry email sent successfully for parameter ${param.id} to ${authUser.user.email}`);
+                  results.expiryReminders.sent++;
+                  emailsSent++;
+                }
+              } else {
+                console.log(`Skipping expiry email for parameter ${param.id} to ${authUser?.user?.email || user.id} - missing email configuration`);
+              }
+            }
             
             console.log(`Successfully processed expiry reminder for parameter: ${param.id}`);
-            results.expiryReminders.sent++;
-            emailsSent++;
           } catch (error) {
             console.error(`Error processing expiry reminder for parameter ${param.id}:`, error);
             results.expiryReminders.errors++;
@@ -208,7 +347,7 @@ const handler = async (req: Request): Promise<Response> => {
     const { error: logError } = await supabase
       .from('email_logs')
       .insert({
-        status: emailsSent > 0 ? 'success' : 'no_emails_sent',
+        status: emailsSent > 0 ? 'sent' : 'failed',
         emails_sent: emailsSent,
         error_message: errorsEncountered > 0 ? `${errorsEncountered} errors encountered` : null,
         sent_at: new Date().toISOString()
@@ -259,7 +398,7 @@ const handler = async (req: Request): Promise<Response> => {
         await supabase
           .from('email_logs')
           .insert({
-            status: 'error',
+            status: 'failed',
             emails_sent: 0,
             error_message: error.message,
             sent_at: new Date().toISOString()
