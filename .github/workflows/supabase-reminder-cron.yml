@@ -13,9 +13,9 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y jq
 
       - name: Debug Service Role Key Length
-        run: echo "Key length: ${#SUPABASE_SERVICE_ROLE_KEY}"
         env:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: echo "Key length: ${#SUPABASE_SERVICE_ROLE_KEY}"
 
       - name: Call Schedule Reminder Check Function
         env:
