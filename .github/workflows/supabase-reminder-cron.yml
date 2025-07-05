@@ -9,40 +9,47 @@ jobs:
   call-supabase-function:
     runs-on: ubuntu-latest
     steps:
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
+
+      - name: Debug Service Role Key Length
+        run: echo "Key length: ${#SUPABASE_SERVICE_ROLE_KEY}"
+        env:
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+
       - name: Call Schedule Reminder Check Function
+        env:
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
           echo "Calling schedule-reminder-check function at $(date)"
           echo "Using Supabase URL: https://mnrsqiinquoeeismvnua.supabase.co"
-          echo "Service Role Key present: $([[ -n "${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" ]] && echo "Yes" || echo "No")"
-          
-          # Create JSON payload with proper escaping
+          echo "Service Role Key present: $([[ -n \"$SUPABASE_SERVICE_ROLE_KEY\" ]] && echo \"Yes\" || echo \"No\")"
+
           TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
           IST_TIME=$(TZ=Asia/Kolkata date)
-          
-          JSON_PAYLOAD=$(cat <<EOF
-          {
-            "source": "github-cron",
-            "timestamp": "$TIMESTAMP",
-            "timezone": "UTC",
-            "ist_time": "$IST_TIME"
-          }
-          EOF
+
+          JSON_PAYLOAD=$(jq -n \
+            --arg source "github-cron" \
+            --arg timestamp "$TIMESTAMP" \
+            --arg timezone "UTC" \
+            --arg ist_time "$IST_TIME" \
+            '{source: $source, timestamp: $timestamp, timezone: $timezone, ist_time: $ist_time}'
           )
-          
+
           echo "Sending payload: $JSON_PAYLOAD"
-          
-          response=$(curl -s -w "\nHTTP_STATUS:%{http_code}" -X POST "https://mnrsqiinquoeeismvnua.supabase.co/functions/v1/schedule-reminder-check" \
-            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+
+          response=$(curl -v -s -w "\nHTTP_STATUS:%{http_code}" -X POST "https://mnrsqiinquoeeismvnua.supabase.co/functions/v1/schedule-reminder-check" \
+            -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
             -H "Content-Type: application/json" \
-            -H "apikey: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
             -d "$JSON_PAYLOAD")
-          
+
           http_status=$(echo "$response" | grep "HTTP_STATUS" | cut -d: -f2)
           response_body=$(echo "$response" | sed '/HTTP_STATUS/d')
-          
+
           echo "Response Status: $http_status"
           echo "Response Body: $response_body"
-          
+
           if [ "$http_status" -ne 200 ]; then
             echo "Error: Function call failed with status $http_status"
             echo "Full response: $response"
@@ -51,5 +58,5 @@ jobs:
             fi
             exit 1
           fi
-          
+
           echo "Cron job completed successfully"
