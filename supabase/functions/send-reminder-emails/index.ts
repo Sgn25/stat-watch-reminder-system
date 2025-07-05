@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.50.2';
 
@@ -402,347 +401,426 @@ async function logEmailActivity(reminderId: string, status: 'sent' | 'failed', e
 }
 
 const handler = async (req: Request): Promise<Response> => {
+  console.log('=== SEND REMINDER EMAILS FUNCTION STARTED ===');
+  console.log('Request method:', req.method);
+  console.log('Timestamp:', new Date().toISOString());
+  console.log('Request URL:', req.url);
+  console.log('Request headers:', Object.fromEntries(req.headers.entries()));
+
   if (req.method === 'OPTIONS') {
+    console.log('Handling CORS preflight request');
     return new Response(null, { headers: corsHeaders });
   }
 
-  // Determine if this is a test run
+  // Parse request data
+  let requestData = {};
   let isTest = false;
   try {
-    const body = await req.json().catch(() => ({}));
-    isTest = body && body.source === 'manual-test';
-  } catch {}
+    requestData = await req.json();
+    console.log('Request data:', requestData);
+    isTest = requestData && (requestData.source === 'manual-test' || requestData.source === 'test');
+  } catch (e) {
+    console.log('No JSON body provided or parsing failed:', e.message);
+  }
 
   try {
-    console.log('=== DAILY EMAIL REMINDER CHECK STARTED ===');
-    console.log('Timestamp:', new Date().toISOString());
-    console.log('Is Test Mode:', isTest);
+    console.log('Environment check:');
+    console.log('- SUPABASE_URL exists:', !!Deno.env.get('SUPABASE_URL'));
+    console.log('- SUPABASE_SERVICE_ROLE_KEY exists:', !!Deno.env.get('SUPABASE_SERVICE_ROLE_KEY'));
+    console.log('- RESEND_API_KEY exists:', !!Deno.env.get('RESEND_API_KEY'));
+    console.log('- RESEND_FROM exists:', !!Deno.env.get('RESEND_FROM'));
     
     const now = new Date();
     const currentDate = now.toISOString().split('T')[0];
-    console.log('Current Date:', currentDate);
+    const currentTime = now.toTimeString().split(' ')[0];
+    console.log('Processing date:', currentDate);
+    console.log('Processing time:', currentTime);
+    console.log('Is Test Mode:', isTest);
 
     // ========================================
     // SECTION 1: AUTO-DELETE EXPIRED REMINDERS
     // ========================================
     console.log('\n--- Step 1: Auto-deleting reminders for expired parameters ---');
-    const { data: expiredReminders, error: expiredError } = await supabase
-      .from('reminders')
-      .select('id, parameter_id')
-      .neq('parameter_id', null);
     
-    if (!expiredError && expiredReminders && expiredReminders.length > 0) {
-      console.log(`Found ${expiredReminders.length} reminders to check for expiry`);
-      for (const reminder of expiredReminders) {
-        const { data: param, error: paramError } = await supabase
-          .from('statutory_parameters')
-          .select('expiry_date')
-          .eq('id', reminder.parameter_id)
-          .single();
+    try {
+      const { data: expiredReminders, error: expiredError } = await supabase
+        .from('reminders')
+        .select('id, parameter_id')
+        .neq('parameter_id', null);
+      
+      if (expiredError) {
+        console.error('Error fetching reminders for expiry check:', expiredError);
+      } else if (expiredReminders && expiredReminders.length > 0) {
+        console.log(`Found ${expiredReminders.length} reminders to check for expiry`);
         
-        if (!paramError && param && param.expiry_date) {
-          const expiry = new Date(param.expiry_date);
-          const nowDate = new Date(now.toISOString().split('T')[0]);
-          if (expiry < nowDate) {
-            await supabase.from('reminders').delete().eq('id', reminder.id);
-            console.log(`Auto-deleted expired reminder ${reminder.id} for parameter ${reminder.parameter_id}`);
+        for (const reminder of expiredReminders) {
+          try {
+            const { data: param, error: paramError } = await supabase
+              .from('statutory_parameters')
+              .select('expiry_date')
+              .eq('id', reminder.parameter_id)
+              .single();
+            
+            if (!paramError && param && param.expiry_date) {
+              const expiry = new Date(param.expiry_date);
+              const nowDate = new Date(currentDate);
+              if (expiry < nowDate) {
+                const { error: deleteError } = await supabase
+                  .from('reminders')
+                  .delete()
+                  .eq('id', reminder.id);
+                
+                if (deleteError) {
+                  console.error(`Failed to delete expired reminder ${reminder.id}:`, deleteError);
+                } else {
+                  console.log(`Auto-deleted expired reminder ${reminder.id} for parameter ${reminder.parameter_id}`);
+                }
+              }
+            }
+          } catch (err) {
+            console.error(`Error processing reminder ${reminder.id} for expiry:`, err);
           }
         }
+      } else {
+        console.log('No reminders found to check for expiry');
       }
-    } else {
-      console.log('No reminders found to check for expiry');
+    } catch (err) {
+      console.error('Error in expired reminders cleanup section:', err);
     }
 
     // ========================================
     // SECTION 2: PROCESS USER-SET REMINDERS DUE TODAY
     // ========================================
     console.log('\n--- Step 2: Processing user-set reminders due today ---');
-    let remindersQuery = supabase
-      .from('reminders')
-      .select(`*, statutory_parameters ( name, category, expiry_date, description )`)
-      .eq('reminder_date', currentDate);
     
-    if (!isTest) {
-      remindersQuery = remindersQuery.eq('is_sent', false);
-    }
-    
-    const { data: dueReminders, error: remindersError } = await remindersQuery;
-    if (remindersError) {
-      console.error('Error fetching user-set reminders:', remindersError);
-      throw new Error(`Failed to fetch reminders: ${remindersError.message}`);
-    }
-    
-    console.log(`Found ${dueReminders?.length || 0} user-set reminders due today`);
-
     let totalEmailsSent = 0;
     const emailResults: any[] = [];
 
-    // Process user-set reminders
-    if (dueReminders && dueReminders.length > 0) {
-      console.log(`Processing ${dueReminders.length} user-set reminders`);
+    try {
+      let remindersQuery = supabase
+        .from('reminders')
+        .select(`*, statutory_parameters ( name, category, expiry_date, description )`)
+        .eq('reminder_date', currentDate);
       
-      for (const reminder of dueReminders as ReminderWithDetails[]) {
-        try {
-          console.log(`Processing user-set reminder ${reminder.id} for parameter ${reminder.statutory_parameters.name}`);
-          
-          const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers();
-          if (authError) {
-            throw new Error(`Failed to fetch auth users: ${authError.message}`);
-          }
+      if (!isTest) {
+        remindersQuery = remindersQuery.eq('is_sent', false);
+      }
+      
+      const { data: dueReminders, error: remindersError } = await remindersQuery;
+      
+      if (remindersError) {
+        console.error('Error fetching user-set reminders:', remindersError);
+        throw new Error(`Failed to fetch reminders: ${remindersError.message}`);
+      }
+      
+      console.log(`Found ${dueReminders?.length || 0} user-set reminders due today`);
 
-          const { data: profiles, error: profilesError } = await supabase
-            .from('profiles')
-            .select('id, full_name, dairy_unit_id')
-            .eq('dairy_unit_id', reminder.dairy_unit_id);
+      // Process user-set reminders
+      if (dueReminders && dueReminders.length > 0) {
+        console.log(`Processing ${dueReminders.length} user-set reminders`);
+        
+        for (const reminder of dueReminders as ReminderWithDetails[]) {
+          try {
+            console.log(`Processing user-set reminder ${reminder.id} for parameter ${reminder.statutory_parameters.name}`);
+            
+            const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers();
+            if (authError) {
+              throw new Error(`Failed to fetch auth users: ${authError.message}`);
+            }
 
-          if (profilesError) {
-            throw new Error(`Failed to fetch profiles: ${profilesError.message}`);
-          }
+            const { data: profiles, error: profilesError } = await supabase
+              .from('profiles')
+              .select('id, full_name, dairy_unit_id')
+              .eq('dairy_unit_id', reminder.dairy_unit_id);
 
-          if (!profiles || profiles.length === 0) {
-            console.log(`No users found for dairy unit ${reminder.dairy_unit_id}`);
-            continue;
-          }
+            if (profilesError) {
+              throw new Error(`Failed to fetch profiles: ${profilesError.message}`);
+            }
 
-          const usersWithEmails: Array<{email: string, name: string}> = [];
-          
-          for (const profile of profiles) {
-            const authUser = authUsers.users.find(u => u.id === profile.id);
-            if (authUser?.email) {
-              usersWithEmails.push({
-                email: authUser.email,
-                name: profile.full_name || 'Team Member'
+            if (!profiles || profiles.length === 0) {
+              console.log(`No users found for dairy unit ${reminder.dairy_unit_id}`);
+              continue;
+            }
+
+            const usersWithEmails: Array<{email: string, name: string}> = [];
+            
+            for (const profile of profiles) {
+              const authUser = authUsers.users.find(u => u.id === profile.id);
+              if (authUser?.email) {
+                usersWithEmails.push({
+                  email: authUser.email,
+                  name: profile.full_name || 'Team Member'
+                });
+              }
+            }
+
+            if (usersWithEmails.length === 0) {
+              console.log(`No email addresses found for dairy unit ${reminder.dairy_unit_id}`);
+              await logEmailActivity(reminder.id, 'failed', 'No email addresses found');
+              continue;
+            }
+
+            console.log(`Sending user-set reminder email to ${usersWithEmails.length} users`);
+
+            let successfulSends = 0;
+            for (const user of usersWithEmails) {
+              try {
+                const emailTemplate = generateEmailTemplate(reminder, user.name, user.email);
+                const emailResult = await sendEmailWithResend(
+                  user.email,
+                  emailTemplate.subject,
+                  emailTemplate.htmlContent,
+                  emailTemplate.textContent
+                );
+                console.log(`User-set reminder email sent successfully to ${user.email}:`, emailResult);
+                successfulSends++;
+                await new Promise(resolve => setTimeout(resolve, 2000));
+              } catch (emailError) {
+                console.error(`Failed to send user-set reminder email to ${user.email}:`, emailError);
+              }
+            }
+
+            if (successfulSends > 0) {
+              await supabase
+                .from('reminders')
+                .update({ is_sent: true })
+                .eq('id', reminder.id);
+
+              totalEmailsSent += successfulSends;
+              await logEmailActivity(reminder.id, 'sent', undefined, successfulSends);
+
+              emailResults.push({
+                type: 'user-set-reminder',
+                reminderId: reminder.id,
+                parameterName: reminder.statutory_parameters.name,
+                emailsSent: successfulSends,
+                status: 'success'
+              });
+            } else {
+              await logEmailActivity(reminder.id, 'failed', 'No emails sent successfully');
+              
+              emailResults.push({
+                type: 'user-set-reminder',
+                reminderId: reminder.id,
+                parameterName: reminder.statutory_parameters.name,
+                status: 'failed',
+                error: 'No emails sent successfully'
               });
             }
-          }
 
-          if (usersWithEmails.length === 0) {
-            console.log(`No email addresses found for dairy unit ${reminder.dairy_unit_id}`);
-            await logEmailActivity(reminder.id, 'failed', 'No email addresses found');
-            continue;
-          }
-
-          console.log(`Sending user-set reminder email to ${usersWithEmails.length} users`);
-
-          let successfulSends = 0;
-          for (const user of usersWithEmails) {
-            try {
-              const emailTemplate = generateEmailTemplate(reminder, user.name, user.email);
-              const emailResult = await sendEmailWithResend(
-                user.email,
-                emailTemplate.subject,
-                emailTemplate.htmlContent,
-                emailTemplate.textContent
-              );
-              console.log(`User-set reminder email sent successfully to ${user.email}:`, emailResult);
-              successfulSends++;
-              await new Promise(resolve => setTimeout(resolve, 2000));
-            } catch (emailError) {
-              console.error(`Failed to send user-set reminder email to ${user.email}:`, emailError);
-            }
-          }
-
-          if (successfulSends > 0) {
-            await supabase
-              .from('reminders')
-              .update({ is_sent: true })
-              .eq('id', reminder.id);
-
-            totalEmailsSent += successfulSends;
-            await logEmailActivity(reminder.id, 'sent', undefined, successfulSends);
-
-            emailResults.push({
-              type: 'user-set-reminder',
-              reminderId: reminder.id,
-              parameterName: reminder.statutory_parameters.name,
-              emailsSent: successfulSends,
-              status: 'success'
-            });
-          } else {
-            await logEmailActivity(reminder.id, 'failed', 'No emails sent successfully');
+          } catch (error) {
+            console.error(`Failed to process user-set reminder ${reminder.id}:`, error);
+            await logEmailActivity(reminder.id, 'failed', error.message);
             
             emailResults.push({
               type: 'user-set-reminder',
               reminderId: reminder.id,
-              parameterName: reminder.statutory_parameters.name,
+              parameterName: reminder.statutory_parameters?.name || 'Unknown',
               status: 'failed',
-              error: 'No emails sent successfully'
+              error: error.message
             });
           }
-
-        } catch (error) {
-          console.error(`Failed to process user-set reminder ${reminder.id}:`, error);
-          await logEmailActivity(reminder.id, 'failed', error.message);
-          
-          emailResults.push({
-            type: 'user-set-reminder',
-            reminderId: reminder.id,
-            parameterName: reminder.statutory_parameters.name,
-            status: 'failed',
-            error: error.message
-          });
         }
+      } else {
+        console.log('No user-set reminders due today');
       }
-    } else {
-      console.log('No user-set reminders due today');
+    } catch (err) {
+      console.error('Error in user-set reminders section:', err);
     }
 
     // ========================================
     // SECTION 3: PROCESS 5-DAY EXPIRY NOTIFICATIONS (ALWAYS RUN)
     // ========================================
-    console.log('\n--- Step 3: Processing 5-day expiry notifications (always runs) ---');
+    console.log('\n--- Step 3: Processing 5-day expiry notifications (always runs daily) ---');
     
-    const fiveDaysLater = new Date(now.getTime() + 5 * 24 * 60 * 60 * 1000);
-    const fiveDaysLaterStr = fiveDaysLater.toISOString().split('T')[0];
-    
-    console.log(`Looking for parameters expiring between ${currentDate} and ${fiveDaysLaterStr}`);
-    
-    const { data: expiringParams, error: paramsError } = await supabase
-      .from('statutory_parameters')
-      .select('*')
-      .gte('expiry_date', currentDate)
-      .lte('expiry_date', fiveDaysLaterStr);
-    
-    if (paramsError) {
-      console.error('Error fetching expiring parameters:', paramsError);
-      throw new Error(`Failed to fetch expiring parameters: ${paramsError.message}`);
-    }
-    
-    console.log(`Found ${expiringParams?.length || 0} parameters expiring in next 5 days`);
-
-    if (expiringParams && expiringParams.length > 0) {
-      console.log(`Processing ${expiringParams.length} expiring parameters for 5-day notifications`);
+    try {
+      const fiveDaysLater = new Date(now.getTime() + 5 * 24 * 60 * 60 * 1000);
+      const fiveDaysLaterStr = fiveDaysLater.toISOString().split('T')[0];
       
-      for (const param of expiringParams) {
-        try {
-          console.log(`Processing expiring parameter ${param.name} (expires: ${param.expiry_date})`);
-          
-          const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers();
-          if (authError) throw new Error(`Failed to fetch auth users: ${authError.message}`);
-          
-          const { data: profiles, error: profilesError } = await supabase
-            .from('profiles')
-            .select('id, full_name, dairy_unit_id')
-            .eq('dairy_unit_id', param.dairy_unit_id);
-          if (profilesError) throw new Error(`Failed to fetch profiles: ${profilesError.message}`);
-          
-          if (!profiles || profiles.length === 0) {
-            console.log(`No users found for dairy unit ${param.dairy_unit_id}`);
-            continue;
-          }
-          
-          const usersWithEmails: Array<{email: string, name: string}> = [];
-          for (const profile of profiles) {
-            const authUser = authUsers.users.find(u => u.id === profile.id);
-            if (authUser?.email) {
-              usersWithEmails.push({ email: authUser.email, name: profile.full_name || 'Team Member' });
+      console.log(`Looking for parameters expiring between ${currentDate} and ${fiveDaysLaterStr}`);
+      
+      const { data: expiringParams, error: paramsError } = await supabase
+        .from('statutory_parameters')
+        .select('*')
+        .gte('expiry_date', currentDate)
+        .lte('expiry_date', fiveDaysLaterStr);
+      
+      if (paramsError) {
+        console.error('Error fetching expiring parameters:', paramsError);
+        throw new Error(`Failed to fetch expiring parameters: ${paramsError.message}`);
+      }
+      
+      console.log(`Found ${expiringParams?.length || 0} parameters expiring in next 5 days`);
+
+      if (expiringParams && expiringParams.length > 0) {
+        console.log(`Processing ${expiringParams.length} expiring parameters for 5-day notifications`);
+        
+        for (const param of expiringParams) {
+          try {
+            console.log(`Processing expiring parameter ${param.name} (expires: ${param.expiry_date})`);
+            
+            const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers();
+            if (authError) {
+              console.error('Failed to fetch auth users:', authError);
+              continue;
             }
-          }
-          
-          if (usersWithEmails.length === 0) {
-            console.log(`No email addresses found for dairy unit ${param.dairy_unit_id}`);
-            continue;
-          }
-          
-          // Calculate days until expiry
-          const expiryDate = new Date(param.expiry_date);
-          const todayDate = new Date(currentDate);
-          const daysUntilExpiry = Math.ceil((expiryDate.getTime() - todayDate.getTime()) / (1000 * 60 * 60 * 24));
-          
-          console.log(`Parameter ${param.name} expires in ${daysUntilExpiry} days - sending 5-day notification`);
-          
-          let expiryEmailsSent = 0;
-          for (const user of usersWithEmails) {
-            try {
-              // Create a reminder-like object for parameter expiry notifications
-              const fakeReminder = {
-                id: `expiry-${param.id}`,
-                parameter_id: param.id,
-                dairy_unit_id: param.dairy_unit_id,
-                reminder_date: currentDate,
-                reminder_time: '10:30',
-                custom_message: `This license expires in ${daysUntilExpiry} day${daysUntilExpiry !== 1 ? 's' : ''}. Please renew it to maintain compliance.`,
-                statutory_parameters: {
-                  name: param.name,
-                  category: param.category,
-                  expiry_date: param.expiry_date,
-                  description: param.description
-                }
-              };
-              
-              const emailTemplate = generateEmailTemplate(fakeReminder, user.name, user.email);
-              const emailResult = await sendEmailWithResend(user.email, emailTemplate.subject, emailTemplate.htmlContent, emailTemplate.textContent);
-              console.log(`5-day expiry notification sent to ${user.email}:`, emailResult);
-              expiryEmailsSent++;
-              totalEmailsSent++;
-              await new Promise(resolve => setTimeout(resolve, 2000));
-            } catch (emailError) {
-              console.error(`Failed to send 5-day expiry notification to ${user.email}:`, emailError);
+            
+            const { data: profiles, error: profilesError } = await supabase
+              .from('profiles')
+              .select('id, full_name, dairy_unit_id')
+              .eq('dairy_unit_id', param.dairy_unit_id);
+            
+            if (profilesError) {
+              console.error('Failed to fetch profiles:', profilesError);
+              continue;
             }
-          }
-          
-          if (expiryEmailsSent > 0) {
+            
+            if (!profiles || profiles.length === 0) {
+              console.log(`No users found for dairy unit ${param.dairy_unit_id}`);
+              continue;
+            }
+            
+            const usersWithEmails: Array<{email: string, name: string}> = [];
+            for (const profile of profiles) {
+              const authUser = authUsers.users.find(u => u.id === profile.id);
+              if (authUser?.email) {
+                usersWithEmails.push({ email: authUser.email, name: profile.full_name || 'Team Member' });
+              }
+            }
+            
+            if (usersWithEmails.length === 0) {
+              console.log(`No email addresses found for dairy unit ${param.dairy_unit_id}`);
+              continue;
+            }
+            
+            // Calculate days until expiry
+            const expiryDate = new Date(param.expiry_date);
+            const todayDate = new Date(currentDate);
+            const daysUntilExpiry = Math.ceil((expiryDate.getTime() - todayDate.getTime()) / (1000 * 60 * 60 * 24));
+            
+            console.log(`Parameter ${param.name} expires in ${daysUntilExpiry} days - sending 5-day notification`);
+            
+            let expiryEmailsSent = 0;
+            for (const user of usersWithEmails) {
+              try {
+                // Create a reminder-like object for parameter expiry notifications
+                const fakeReminder = {
+                  id: `expiry-${param.id}`,
+                  parameter_id: param.id,
+                  dairy_unit_id: param.dairy_unit_id,
+                  reminder_date: currentDate,
+                  reminder_time: '10:30',
+                  custom_message: `This license expires in ${daysUntilExpiry} day${daysUntilExpiry !== 1 ? 's' : ''}. Please renew it to maintain compliance.`,
+                  statutory_parameters: {
+                    name: param.name,
+                    category: param.category,
+                    expiry_date: param.expiry_date,
+                    description: param.description
+                  }
+                };
+                
+                const emailTemplate = generateEmailTemplate(fakeReminder, user.name, user.email);
+                const emailResult = await sendEmailWithResend(user.email, emailTemplate.subject, emailTemplate.htmlContent, emailTemplate.textContent);
+                console.log(`5-day expiry notification sent to ${user.email}:`, emailResult);
+                expiryEmailsSent++;
+                totalEmailsSent++;
+                await new Promise(resolve => setTimeout(resolve, 2000));
+              } catch (emailError) {
+                console.error(`Failed to send 5-day expiry notification to ${user.email}:`, emailError);
+              }
+            }
+            
+            if (expiryEmailsSent > 0) {
+              emailResults.push({
+                type: '5-day-expiry-notification',
+                parameterId: param.id,
+                parameterName: param.name,
+                emailsSent: expiryEmailsSent,
+                status: 'success',
+                daysUntilExpiry
+              });
+            }
+          } catch (err) {
+            console.error('Error processing 5-day expiry notification:', err);
             emailResults.push({
               type: '5-day-expiry-notification',
               parameterId: param.id,
               parameterName: param.name,
-              emailsSent: expiryEmailsSent,
-              status: 'success',
-              daysUntilExpiry
+              status: 'failed',
+              error: err.message
             });
           }
-        } catch (err) {
-          console.error('Error processing 5-day expiry notification:', err);
-          emailResults.push({
-            type: '5-day-expiry-notification',
-            parameterId: param.id,
-            parameterName: param.name,
-            status: 'failed',
-            error: err.message
-          });
         }
+      } else {
+        console.log('No parameters expiring in next 5 days');
       }
-    } else {
-      console.log('No parameters expiring in next 5 days');
+    } catch (err) {
+      console.error('Error in 5-day expiry notifications section:', err);
     }
 
     console.log('\n=== DAILY EMAIL REMINDER CHECK COMPLETED ===');
     console.log(`Total emails sent: ${totalEmailsSent}`);
-    console.log(`User-set reminders processed: ${dueReminders?.length || 0}`);
-    console.log(`Parameters with 5-day expiry notifications: ${expiringParams?.length || 0}`);
+    console.log(`Results: ${JSON.stringify(emailResults, null, 2)}`);
 
-    return new Response(JSON.stringify({
+    const finalResponse = {
       success: true,
       message: 'Daily email reminder check completed successfully',
       timestamp: new Date().toISOString(),
       executionSummary: {
         totalEmailsSent,
-        userSetRemindersProcessed: dueReminders?.length || 0,
-        fiveDayExpiryNotifications: expiringParams?.length || 0,
+        userSetRemindersProcessed: emailResults.filter(r => r.type === 'user-set-reminder').length,
+        fiveDayExpiryNotifications: emailResults.filter(r => r.type === '5-day-expiry-notification').length,
         currentDate,
-        scheduledTime: '10:30 AM daily'
+        currentTime,
+        scheduledTime: '10:30 AM daily (5:00 UTC)'
       },
       results: emailResults,
       debug: {
+        requestData,
         currentDate,
-        currentTime: now.toTimeString().split(' ')[0].substring(0, 5),
+        currentTime,
         utcTime: now.toISOString(),
-        isTestMode: isTest
+        isTestMode: isTest,
+        environmentVariables: {
+          supabaseUrl: !!Deno.env.get('SUPABASE_URL'),
+          serviceRoleKey: !!Deno.env.get('SUPABASE_SERVICE_ROLE_KEY'),
+          resendApiKey: !!Deno.env.get('RESEND_API_KEY'),
+          resendFrom: !!Deno.env.get('RESEND_FROM')
+        }
       }
-    }), {
+    };
+
+    console.log('Final response:', JSON.stringify(finalResponse, null, 2));
+
+    return new Response(JSON.stringify(finalResponse), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
   } catch (error) {
-    console.error('=== ERROR IN DAILY EMAIL REMINDER CHECK ===');
-    console.error('Error details:', error);
-    return new Response(JSON.stringify({ 
+    console.error('=== CRITICAL ERROR IN SEND REMINDER EMAILS FUNCTION ===');
+    console.error('Error type:', error.constructor.name);
+    console.error('Error message:', error.message);
+    console.error('Error stack:', error.stack);
+    
+    const errorResponse = {
       success: false,
       error: 'Internal server error',
       message: error.message,
-      timestamp: new Date().toISOString()
-    }), {
+      timestamp: new Date().toISOString(),
+      debug: {
+        errorType: error.constructor.name,
+        requestData,
+        environmentCheck: {
+          supabaseUrl: !!Deno.env.get('SUPABASE_URL'),
+          serviceRoleKey: !!Deno.env.get('SUPABASE_SERVICE_ROLE_KEY'),
+          resendApiKey: !!Deno.env.get('RESEND_API_KEY'),
+          resendFrom: !!Deno.env.get('RESEND_FROM')
+        }
+      }
+    };
+    
+    return new Response(JSON.stringify(errorResponse), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });

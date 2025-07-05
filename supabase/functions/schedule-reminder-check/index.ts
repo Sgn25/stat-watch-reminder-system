@@ -12,11 +12,29 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
-    console.log('Cron job triggered: Checking for reminder emails to send');
+    console.log('=== SCHEDULE REMINDER CHECK FUNCTION TRIGGERED ===');
+    console.log('Timestamp:', new Date().toISOString());
+    console.log('Function URL:', Deno.env.get('SUPABASE_URL'));
+    
+    // Parse request body to check source
+    let requestData = {};
+    try {
+      requestData = await req.json();
+      console.log('Request data:', requestData);
+    } catch (e) {
+      console.log('No JSON body provided, using empty object');
+    }
     
     // Call the send-reminder-emails function
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    
+    if (!supabaseUrl || !serviceRoleKey) {
+      throw new Error('Missing required environment variables: SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY');
+    }
+    
+    console.log('Calling send-reminder-emails function...');
+    console.log('Target URL:', `${supabaseUrl}/functions/v1/send-reminder-emails`);
     
     const response = await fetch(`${supabaseUrl}/functions/v1/send-reminder-emails`, {
       method: 'POST',
@@ -24,29 +42,56 @@ const handler = async (req: Request): Promise<Response> => {
         'Authorization': `Bearer ${serviceRoleKey}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ source: 'cron' }),
+      body: JSON.stringify({ 
+        source: 'scheduled-cron',
+        triggeredBy: 'schedule-reminder-check',
+        originalSource: requestData,
+        timestamp: new Date().toISOString()
+      }),
     });
 
-    const result = await response.json();
+    console.log('Response status:', response.status);
+    console.log('Response headers:', Object.fromEntries(response.headers.entries()));
     
-    console.log('Reminder check completed:', result);
-
-    return new Response(JSON.stringify({
-      message: 'Scheduled reminder check completed',
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Error response from send-reminder-emails:', errorText);
+      throw new Error(`HTTP error! status: ${response.status}, body: ${errorText}`);
+    }
+    
+    const result = await response.json();
+    console.log('Send-reminder-emails result:', result);
+    
+    const finalResult = {
+      success: true,
+      message: 'Scheduled reminder check completed successfully',
       timestamp: new Date().toISOString(),
-      result
-    }), {
+      functionCalled: 'send-reminder-emails',
+      result: result
+    };
+    
+    console.log('Final result:', finalResult);
+
+    return new Response(JSON.stringify(finalResult), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
   } catch (error) {
-    console.error('Error in schedule-reminder-check function:', error);
-    return new Response(JSON.stringify({ 
-      error: 'Cron job failed',
+    console.error('=== ERROR IN SCHEDULE REMINDER CHECK ===');
+    console.error('Error type:', error.constructor.name);
+    console.error('Error message:', error.message);
+    console.error('Error stack:', error.stack);
+    
+    const errorResult = {
+      success: false,
+      error: 'Schedule reminder check failed',
       message: error.message,
-      timestamp: new Date().toISOString()
-    }), {
+      timestamp: new Date().toISOString(),
+      errorType: error.constructor.name
+    };
+    
+    return new Response(JSON.stringify(errorResult), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
