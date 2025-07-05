@@ -2,7 +2,7 @@ name: Daily Supabase Reminder
 
 on:
   schedule:
-    - cron: '0 6 * * *' # 6:00 UTC = 11:30 AM IST
+    - cron: '0 6 * * *'
   workflow_dispatch:
 
 jobs:
@@ -15,7 +15,6 @@ jobs:
       - name: Debug Service Role Key Length
         env:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-        shell: bash
         run: |
           if [ -z "$SUPABASE_SERVICE_ROLE_KEY" ]; then
             echo "Service Role Key is empty!"
@@ -26,7 +25,6 @@ jobs:
       - name: Call Schedule Reminder Check Function
         env:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-        shell: bash
         run: |
           echo "Calling schedule-reminder-check function at $(date)"
           echo "Using Supabase URL: https://mnrsqiinquoeeismvnua.supabase.co"
