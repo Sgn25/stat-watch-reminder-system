@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.50.2';
 
@@ -413,76 +414,76 @@ const handler = async (req: Request): Promise<Response> => {
   } catch {}
 
   try {
-    console.log('Starting daily expiry reminder check at 10:30 AM...');
+    console.log('=== DAILY EMAIL REMINDER CHECK STARTED ===');
+    console.log('Timestamp:', new Date().toISOString());
+    console.log('Is Test Mode:', isTest);
+    
     const now = new Date();
     const currentDate = now.toISOString().split('T')[0];
+    console.log('Current Date:', currentDate);
 
-    // Auto-delete reminders whose parameter has expired
+    // ========================================
+    // SECTION 1: AUTO-DELETE EXPIRED REMINDERS
+    // ========================================
+    console.log('\n--- Step 1: Auto-deleting reminders for expired parameters ---');
     const { data: expiredReminders, error: expiredError } = await supabase
       .from('reminders')
       .select('id, parameter_id')
       .neq('parameter_id', null);
+    
     if (!expiredError && expiredReminders && expiredReminders.length > 0) {
+      console.log(`Found ${expiredReminders.length} reminders to check for expiry`);
       for (const reminder of expiredReminders) {
         const { data: param, error: paramError } = await supabase
           .from('statutory_parameters')
           .select('expiry_date')
           .eq('id', reminder.parameter_id)
           .single();
+        
         if (!paramError && param && param.expiry_date) {
           const expiry = new Date(param.expiry_date);
           const nowDate = new Date(now.toISOString().split('T')[0]);
           if (expiry < nowDate) {
             await supabase.from('reminders').delete().eq('id', reminder.id);
-            console.log(`Auto-deleted reminder ${reminder.id} for expired parameter ${reminder.parameter_id}`);
+            console.log(`Auto-deleted expired reminder ${reminder.id} for parameter ${reminder.parameter_id}`);
           }
         }
       }
+    } else {
+      console.log('No reminders found to check for expiry');
     }
 
-    // 1. Fetch all regular reminders for today (if any)
+    // ========================================
+    // SECTION 2: PROCESS USER-SET REMINDERS DUE TODAY
+    // ========================================
+    console.log('\n--- Step 2: Processing user-set reminders due today ---');
     let remindersQuery = supabase
       .from('reminders')
       .select(`*, statutory_parameters ( name, category, expiry_date, description )`)
       .eq('reminder_date', currentDate);
+    
     if (!isTest) {
       remindersQuery = remindersQuery.eq('is_sent', false);
     }
+    
     const { data: dueReminders, error: remindersError } = await remindersQuery;
     if (remindersError) {
-      console.error('Error fetching reminders:', remindersError);
+      console.error('Error fetching user-set reminders:', remindersError);
       throw new Error(`Failed to fetch reminders: ${remindersError.message}`);
     }
-    console.log(`Found ${dueReminders?.length || 0} due reminders for today`);
-
-    // 2. ALWAYS fetch parameters expiring in the next 5 days (regardless of reminders)
-    const fiveDaysLater = new Date(now.getTime() + 5 * 24 * 60 * 60 * 1000);
-    const fiveDaysLaterStr = fiveDaysLater.toISOString().split('T')[0];
     
-    console.log(`Daily check: Looking for parameters expiring between ${currentDate} and ${fiveDaysLaterStr}`);
-    
-    const { data: expiringParams, error: paramsError } = await supabase
-      .from('statutory_parameters')
-      .select('*')
-      .gte('expiry_date', currentDate)
-      .lte('expiry_date', fiveDaysLaterStr);
-    
-    if (paramsError) {
-      console.error('Error fetching expiring parameters:', paramsError);
-      throw new Error(`Failed to fetch expiring parameters: ${paramsError.message}`);
-    }
-    console.log(`Found ${expiringParams?.length || 0} parameters expiring in next 5 days`);
+    console.log(`Found ${dueReminders?.length || 0} user-set reminders due today`);
 
     let totalEmailsSent = 0;
     const emailResults: any[] = [];
 
-    // Process regular reminders (if any)
+    // Process user-set reminders
     if (dueReminders && dueReminders.length > 0) {
-      console.log(`Processing ${dueReminders.length} due reminders`);
+      console.log(`Processing ${dueReminders.length} user-set reminders`);
       
       for (const reminder of dueReminders as ReminderWithDetails[]) {
         try {
-          console.log(`Processing reminder ${reminder.id} for parameter ${reminder.statutory_parameters.name}`);
+          console.log(`Processing user-set reminder ${reminder.id} for parameter ${reminder.statutory_parameters.name}`);
           
           const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers();
           if (authError) {
@@ -521,7 +522,7 @@ const handler = async (req: Request): Promise<Response> => {
             continue;
           }
 
-          console.log(`Sending email to ${usersWithEmails.length} users`);
+          console.log(`Sending user-set reminder email to ${usersWithEmails.length} users`);
 
           let successfulSends = 0;
           for (const user of usersWithEmails) {
@@ -533,11 +534,11 @@ const handler = async (req: Request): Promise<Response> => {
                 emailTemplate.htmlContent,
                 emailTemplate.textContent
               );
-              console.log(`Email sent successfully to ${user.email}:`, emailResult);
+              console.log(`User-set reminder email sent successfully to ${user.email}:`, emailResult);
               successfulSends++;
               await new Promise(resolve => setTimeout(resolve, 2000));
             } catch (emailError) {
-              console.error(`Failed to send email to ${user.email}:`, emailError);
+              console.error(`Failed to send user-set reminder email to ${user.email}:`, emailError);
             }
           }
 
@@ -551,6 +552,7 @@ const handler = async (req: Request): Promise<Response> => {
             await logEmailActivity(reminder.id, 'sent', undefined, successfulSends);
 
             emailResults.push({
+              type: 'user-set-reminder',
               reminderId: reminder.id,
               parameterName: reminder.statutory_parameters.name,
               emailsSent: successfulSends,
@@ -560,6 +562,7 @@ const handler = async (req: Request): Promise<Response> => {
             await logEmailActivity(reminder.id, 'failed', 'No emails sent successfully');
             
             emailResults.push({
+              type: 'user-set-reminder',
               reminderId: reminder.id,
               parameterName: reminder.statutory_parameters.name,
               status: 'failed',
@@ -568,10 +571,11 @@ const handler = async (req: Request): Promise<Response> => {
           }
 
         } catch (error) {
-          console.error(`Failed to process reminder ${reminder.id}:`, error);
+          console.error(`Failed to process user-set reminder ${reminder.id}:`, error);
           await logEmailActivity(reminder.id, 'failed', error.message);
           
           emailResults.push({
+            type: 'user-set-reminder',
             reminderId: reminder.id,
             parameterName: reminder.statutory_parameters.name,
             status: 'failed',
@@ -579,11 +583,35 @@ const handler = async (req: Request): Promise<Response> => {
           });
         }
       }
+    } else {
+      console.log('No user-set reminders due today');
     }
 
-    // ALWAYS process parameter expiry notifications (5 days before expiry)
+    // ========================================
+    // SECTION 3: PROCESS 5-DAY EXPIRY NOTIFICATIONS (ALWAYS RUN)
+    // ========================================
+    console.log('\n--- Step 3: Processing 5-day expiry notifications (always runs) ---');
+    
+    const fiveDaysLater = new Date(now.getTime() + 5 * 24 * 60 * 60 * 1000);
+    const fiveDaysLaterStr = fiveDaysLater.toISOString().split('T')[0];
+    
+    console.log(`Looking for parameters expiring between ${currentDate} and ${fiveDaysLaterStr}`);
+    
+    const { data: expiringParams, error: paramsError } = await supabase
+      .from('statutory_parameters')
+      .select('*')
+      .gte('expiry_date', currentDate)
+      .lte('expiry_date', fiveDaysLaterStr);
+    
+    if (paramsError) {
+      console.error('Error fetching expiring parameters:', paramsError);
+      throw new Error(`Failed to fetch expiring parameters: ${paramsError.message}`);
+    }
+    
+    console.log(`Found ${expiringParams?.length || 0} parameters expiring in next 5 days`);
+
     if (expiringParams && expiringParams.length > 0) {
-      console.log(`Processing ${expiringParams.length} expiring parameters for daily 10:30 AM check`);
+      console.log(`Processing ${expiringParams.length} expiring parameters for 5-day notifications`);
       
       for (const param of expiringParams) {
         try {
@@ -621,13 +649,14 @@ const handler = async (req: Request): Promise<Response> => {
           const todayDate = new Date(currentDate);
           const daysUntilExpiry = Math.ceil((expiryDate.getTime() - todayDate.getTime()) / (1000 * 60 * 60 * 24));
           
-          console.log(`Parameter ${param.name} expires in ${daysUntilExpiry} days - sending daily reminder`);
+          console.log(`Parameter ${param.name} expires in ${daysUntilExpiry} days - sending 5-day notification`);
           
+          let expiryEmailsSent = 0;
           for (const user of usersWithEmails) {
             try {
               // Create a reminder-like object for parameter expiry notifications
               const fakeReminder = {
-                id: `param-${param.id}`,
+                id: `expiry-${param.id}`,
                 parameter_id: param.id,
                 dairy_unit_id: param.dairy_unit_id,
                 reminder_date: currentDate,
@@ -643,34 +672,62 @@ const handler = async (req: Request): Promise<Response> => {
               
               const emailTemplate = generateEmailTemplate(fakeReminder, user.name, user.email);
               const emailResult = await sendEmailWithResend(user.email, emailTemplate.subject, emailTemplate.htmlContent, emailTemplate.textContent);
-              console.log(`Daily expiry reminder email sent to ${user.email}:`, emailResult);
+              console.log(`5-day expiry notification sent to ${user.email}:`, emailResult);
+              expiryEmailsSent++;
               totalEmailsSent++;
               await new Promise(resolve => setTimeout(resolve, 2000));
             } catch (emailError) {
-              console.error(`Failed to send daily expiry reminder email to ${user.email}:`, emailError);
+              console.error(`Failed to send 5-day expiry notification to ${user.email}:`, emailError);
             }
           }
+          
+          if (expiryEmailsSent > 0) {
+            emailResults.push({
+              type: '5-day-expiry-notification',
+              parameterId: param.id,
+              parameterName: param.name,
+              emailsSent: expiryEmailsSent,
+              status: 'success',
+              daysUntilExpiry
+            });
+          }
         } catch (err) {
-          console.error('Error processing daily parameter expiry notification:', err);
+          console.error('Error processing 5-day expiry notification:', err);
+          emailResults.push({
+            type: '5-day-expiry-notification',
+            parameterId: param.id,
+            parameterName: param.name,
+            status: 'failed',
+            error: err.message
+          });
         }
       }
     } else {
-      console.log('No parameters expiring in next 5 days - daily check complete');
+      console.log('No parameters expiring in next 5 days');
     }
 
-    console.log(`Daily 10:30 AM email processing complete. Total emails sent: ${totalEmailsSent}`);
+    console.log('\n=== DAILY EMAIL REMINDER CHECK COMPLETED ===');
+    console.log(`Total emails sent: ${totalEmailsSent}`);
+    console.log(`User-set reminders processed: ${dueReminders?.length || 0}`);
+    console.log(`Parameters with 5-day expiry notifications: ${expiringParams?.length || 0}`);
 
     return new Response(JSON.stringify({
-      message: 'Daily 10:30 AM expiry reminder check completed',
-      totalEmailsSent,
-      processedReminders: emailResults.length,
-      processedExpiringParams: expiringParams?.length || 0,
+      success: true,
+      message: 'Daily email reminder check completed successfully',
+      timestamp: new Date().toISOString(),
+      executionSummary: {
+        totalEmailsSent,
+        userSetRemindersProcessed: dueReminders?.length || 0,
+        fiveDayExpiryNotifications: expiringParams?.length || 0,
+        currentDate,
+        scheduledTime: '10:30 AM daily'
+      },
       results: emailResults,
-      scheduledTime: '10:30 AM daily',
       debug: {
         currentDate,
         currentTime: now.toTimeString().split(' ')[0].substring(0, 5),
         utcTime: now.toISOString(),
+        isTestMode: isTest
       }
     }), {
       status: 200,
@@ -678,10 +735,13 @@ const handler = async (req: Request): Promise<Response> => {
     });
 
   } catch (error) {
-    console.error('Error in daily 10:30 AM send-reminder-emails function:', error);
+    console.error('=== ERROR IN DAILY EMAIL REMINDER CHECK ===');
+    console.error('Error details:', error);
     return new Response(JSON.stringify({ 
+      success: false,
       error: 'Internal server error',
-      message: error.message 
+      message: error.message,
+      timestamp: new Date().toISOString()
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
