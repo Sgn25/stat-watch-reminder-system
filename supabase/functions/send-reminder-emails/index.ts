@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.50.2';
 
@@ -59,11 +60,14 @@ async function sendEmailWithResend(to: string, subject: string, htmlContent: str
   return result;
 }
 
-function generateEmailTemplate(reminder: ReminderWithDetails, recipientName: string) {
+function generateEmailTemplate(reminder: ReminderWithDetails, recipientName: string, recipientEmail: string) {
   const expiryDate = new Date(reminder.statutory_parameters.expiry_date).toLocaleDateString('en-GB');
   const reminderDate = new Date(reminder.reminder_date).toLocaleDateString('en-GB');
   
   const subject = `License Renewal Required: ${reminder.statutory_parameters.name}`;
+  
+  // Calculate unsubscribe URL with proper encoding
+  const unsubscribeUrl = `https://unsubscribe.resend.com/?email=${encodeURIComponent(recipientEmail)}`;
   
   const htmlContent = `
     <!DOCTYPE html>
@@ -257,6 +261,13 @@ function generateEmailTemplate(reminder: ReminderWithDetails, recipientName: str
           font-weight: 700;
           color: #1e3a8a;
         }
+        .unsubscribe-link {
+          font-size: 12px;
+          color: #9ca3af;
+          text-decoration: underline;
+          margin-top: 16px;
+          display: block;
+        }
         @media (max-width: 600px) {
           .email-container {
             margin: 0;
@@ -336,6 +347,9 @@ function generateEmailTemplate(reminder: ReminderWithDetails, recipientName: str
           <p>This is an automated reminder from <span class="brand">StatMonitor</span></p>
           <p>Need help? Contact your administrator or reply to this email.</p>
           <p style="margin-top: 12px; font-size: 12px;">© 2024 StatMonitor. All rights reserved.</p>
+          <a href="${unsubscribeUrl}" class="unsubscribe-link" target="_blank">
+            Unsubscribe from these emails
+          </a>
         </div>
       </div>
     </body>
@@ -366,6 +380,8 @@ function generateEmailTemplate(reminder: ReminderWithDetails, recipientName: str
     
     ---
     This is an automated reminder. Need help? Contact your administrator.
+    
+    To unsubscribe from these emails, visit: ${unsubscribeUrl}
   `;
   
   return { subject, htmlContent, textContent };
@@ -385,16 +401,6 @@ async function logEmailActivity(reminderId: string, status: 'sent' | 'failed', e
   }
 }
 
-/**
- * Email Reminder Logic (2024-07 update):
- *
- * 1. Every day at 10:00 AM (app time), this function checks for:
- *    a) All reminders expiring today (any time up to 23:59)
- *    b) All statutory parameters expiring in the next 5 days (and not yet renewed)
- * 2. At 11:00 AM, the function is scheduled to send all these reminders/notifications to all registered users.
- * 3. For the test email endpoint, reminders for today are always sent, even if already sent before.
- * 4. Parameter expiry notifications are sent daily from 5 days before expiry until renewed.
- */
 const handler = async (req: Request): Promise<Response> => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -419,7 +425,6 @@ const handler = async (req: Request): Promise<Response> => {
       .neq('parameter_id', null);
     if (!expiredError && expiredReminders && expiredReminders.length > 0) {
       for (const reminder of expiredReminders) {
-        // Get the parameter's expiry_date
         const { data: param, error: paramError } = await supabase
           .from('statutory_parameters')
           .select('expiry_date')
@@ -429,7 +434,6 @@ const handler = async (req: Request): Promise<Response> => {
           const expiry = new Date(param.expiry_date);
           const nowDate = new Date(now.toISOString().split('T')[0]);
           if (expiry < nowDate) {
-            // Parameter expired, delete the reminder
             await supabase.from('reminders').delete().eq('id', reminder.id);
             console.log(`Auto-deleted reminder ${reminder.id} for expired parameter ${reminder.parameter_id}`);
           }
@@ -437,7 +441,7 @@ const handler = async (req: Request): Promise<Response> => {
       }
     }
 
-    // 1. Fetch all reminders for today (regardless of time)
+    // 1. Fetch all reminders for today
     let remindersQuery = supabase
       .from('reminders')
       .select(`*, statutory_parameters ( name, category, expiry_date, description )`)
@@ -452,207 +456,204 @@ const handler = async (req: Request): Promise<Response> => {
     }
     console.log(`Found ${dueReminders?.length || 0} due reminders for today`);
 
-    // 2. Fetch all parameters expiring in the next 5 days (and not yet renewed)
+    // 2. Fetch all parameters expiring in the next 5 days (FIXED LOGIC)
     const fiveDaysLater = new Date(now.getTime() + 5 * 24 * 60 * 60 * 1000);
     const fiveDaysLaterStr = fiveDaysLater.toISOString().split('T')[0];
+    
+    console.log(`Checking for parameters expiring between ${currentDate} and ${fiveDaysLaterStr}`);
+    
     const { data: expiringParams, error: paramsError } = await supabase
       .from('statutory_parameters')
       .select('*')
       .gte('expiry_date', currentDate)
       .lte('expiry_date', fiveDaysLaterStr);
-      // TODO: Add logic to exclude renewed parameters if such a flag/field exists
+    
     if (paramsError) {
       console.error('Error fetching expiring parameters:', paramsError);
       throw new Error(`Failed to fetch expiring parameters: ${paramsError.message}`);
     }
     console.log(`Found ${expiringParams?.length || 0} parameters expiring in next 5 days`);
 
-    if (!dueReminders || dueReminders.length === 0) {
-      // Let's also check what reminders exist for debugging
-      const { data: allReminders } = await supabase
-        .from('reminders')
-        .select('id, reminder_date, reminder_time, is_sent')
-        .eq('is_sent', false);
-      
-      console.log('All pending reminders for debugging:', allReminders);
-      
-      return new Response(JSON.stringify({ 
-        message: 'No due reminders found',
-        debug: {
-          currentDate,
-          currentTime: now.toTimeString().split(' ')[0].substring(0, 5),
-          utcTime: now.toISOString(),
-          allPendingReminders: allReminders,
-        }
-      }), {
-        status: 200,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    console.log(`Processing ${dueReminders.length} due reminders`);
-    
     let totalEmailsSent = 0;
     const emailResults: any[] = [];
 
-    // Process each reminder
-    for (const reminder of dueReminders as ReminderWithDetails[]) {
-      try {
-        console.log(`Processing reminder ${reminder.id} for parameter ${reminder.statutory_parameters.name}`);
-        
-        // Get all users from the same dairy unit
-        const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers();
-        
-        if (authError) {
-          throw new Error(`Failed to fetch auth users: ${authError.message}`);
-        }
+    // Process regular reminders
+    if (dueReminders && dueReminders.length > 0) {
+      console.log(`Processing ${dueReminders.length} due reminders`);
+      
+      for (const reminder of dueReminders as ReminderWithDetails[]) {
+        try {
+          console.log(`Processing reminder ${reminder.id} for parameter ${reminder.statutory_parameters.name}`);
+          
+          const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers();
+          if (authError) {
+            throw new Error(`Failed to fetch auth users: ${authError.message}`);
+          }
 
-        // Get profiles for the dairy unit
-        const { data: profiles, error: profilesError } = await supabase
-          .from('profiles')
-          .select('id, full_name, dairy_unit_id')
-          .eq('dairy_unit_id', reminder.dairy_unit_id);
+          const { data: profiles, error: profilesError } = await supabase
+            .from('profiles')
+            .select('id, full_name, dairy_unit_id')
+            .eq('dairy_unit_id', reminder.dairy_unit_id);
 
-        if (profilesError) {
-          throw new Error(`Failed to fetch profiles: ${profilesError.message}`);
-        }
+          if (profilesError) {
+            throw new Error(`Failed to fetch profiles: ${profilesError.message}`);
+          }
 
-        if (!profiles || profiles.length === 0) {
-          console.log(`No users found for dairy unit ${reminder.dairy_unit_id}`);
-          continue;
-        }
+          if (!profiles || profiles.length === 0) {
+            console.log(`No users found for dairy unit ${reminder.dairy_unit_id}`);
+            continue;
+          }
 
-        // Match profiles with auth users to get email addresses
-        const usersWithEmails: Array<{email: string, name: string}> = [];
-        
-        for (const profile of profiles) {
-          const authUser = authUsers.users.find(u => u.id === profile.id);
-          if (authUser?.email) {
-            usersWithEmails.push({
-              email: authUser.email,
-              name: profile.full_name || 'Team Member'
+          const usersWithEmails: Array<{email: string, name: string}> = [];
+          
+          for (const profile of profiles) {
+            const authUser = authUsers.users.find(u => u.id === profile.id);
+            if (authUser?.email) {
+              usersWithEmails.push({
+                email: authUser.email,
+                name: profile.full_name || 'Team Member'
+              });
+            }
+          }
+
+          if (usersWithEmails.length === 0) {
+            console.log(`No email addresses found for dairy unit ${reminder.dairy_unit_id}`);
+            await logEmailActivity(reminder.id, 'failed', 'No email addresses found');
+            continue;
+          }
+
+          console.log(`Sending email to ${usersWithEmails.length} users`);
+
+          let successfulSends = 0;
+          for (const user of usersWithEmails) {
+            try {
+              const emailTemplate = generateEmailTemplate(reminder, user.name, user.email);
+              const emailResult = await sendEmailWithResend(
+                user.email,
+                emailTemplate.subject,
+                emailTemplate.htmlContent,
+                emailTemplate.textContent
+              );
+              console.log(`Email sent successfully to ${user.email}:`, emailResult);
+              successfulSends++;
+              await new Promise(resolve => setTimeout(resolve, 2000));
+            } catch (emailError) {
+              console.error(`Failed to send email to ${user.email}:`, emailError);
+            }
+          }
+
+          if (successfulSends > 0) {
+            await supabase
+              .from('reminders')
+              .update({ is_sent: true })
+              .eq('id', reminder.id);
+
+            totalEmailsSent += successfulSends;
+            await logEmailActivity(reminder.id, 'sent', undefined, successfulSends);
+
+            emailResults.push({
+              reminderId: reminder.id,
+              parameterName: reminder.statutory_parameters.name,
+              emailsSent: successfulSends,
+              status: 'success'
+            });
+          } else {
+            await logEmailActivity(reminder.id, 'failed', 'No emails sent successfully');
+            
+            emailResults.push({
+              reminderId: reminder.id,
+              parameterName: reminder.statutory_parameters.name,
+              status: 'failed',
+              error: 'No emails sent successfully'
             });
           }
-        }
 
-        if (usersWithEmails.length === 0) {
-          console.log(`No email addresses found for dairy unit ${reminder.dairy_unit_id}`);
-          await logEmailActivity(reminder.id, 'failed', 'No email addresses found');
-          continue;
-        }
-
-        console.log(`Sending email to ${usersWithEmails.length} users`);
-
-        // Send emails one by one with delay
-        let successfulSends = 0;
-        for (const user of usersWithEmails) {
-          try {
-            // Generate personalized email content
-            const emailTemplate = generateEmailTemplate(reminder, user.name);
-            // Send email via Resend
-            const emailResult = await sendEmailWithResend(
-              user.email,
-              emailTemplate.subject,
-              emailTemplate.htmlContent,
-              emailTemplate.textContent
-            );
-            console.log(`Email sent successfully to ${user.email}:`, emailResult);
-            successfulSends++;
-            // Add 2-second delay between sends to avoid rate limiting
-            await new Promise(resolve => setTimeout(resolve, 2000));
-          } catch (emailError) {
-            console.error(`Failed to send email to ${user.email}:`, emailError);
-          }
-        }
-
-        if (successfulSends > 0) {
-          // Mark reminder as sent
-          await supabase
-            .from('reminders')
-            .update({ is_sent: true })
-            .eq('id', reminder.id);
-
-          totalEmailsSent += successfulSends;
-          await logEmailActivity(reminder.id, 'sent', undefined, successfulSends);
-
-          emailResults.push({
-            reminderId: reminder.id,
-            parameterName: reminder.statutory_parameters.name,
-            emailsSent: successfulSends,
-            status: 'success'
-          });
-        } else {
-          await logEmailActivity(reminder.id, 'failed', 'No emails sent successfully');
+        } catch (error) {
+          console.error(`Failed to process reminder ${reminder.id}:`, error);
+          await logEmailActivity(reminder.id, 'failed', error.message);
           
           emailResults.push({
             reminderId: reminder.id,
             parameterName: reminder.statutory_parameters.name,
             status: 'failed',
-            error: 'No emails sent successfully'
+            error: error.message
           });
         }
-
-      } catch (error) {
-        console.error(`Failed to process reminder ${reminder.id}:`, error);
-        await logEmailActivity(reminder.id, 'failed', error.message);
-        
-        emailResults.push({
-          reminderId: reminder.id,
-          parameterName: reminder.statutory_parameters.name,
-          status: 'failed',
-          error: error.message
-        });
       }
     }
 
-    // Send parameter expiry notifications with updated design
-    for (const param of expiringParams || []) {
-      try {
-        // Get all users from the same dairy unit
-        const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers();
-        if (authError) throw new Error(`Failed to fetch auth users: ${authError.message}`);
-        const { data: profiles, error: profilesError } = await supabase
-          .from('profiles')
-          .select('id, full_name, dairy_unit_id')
-          .eq('dairy_unit_id', param.dairy_unit_id);
-        if (profilesError) throw new Error(`Failed to fetch profiles: ${profilesError.message}`);
-        if (!profiles || profiles.length === 0) continue;
-        const usersWithEmails: Array<{email: string, name: string}> = [];
-        for (const profile of profiles) {
-          const authUser = authUsers.users.find(u => u.id === profile.id);
-          if (authUser?.email) {
-            usersWithEmails.push({ email: authUser.email, name: profile.full_name || 'Team Member' });
+    // Process parameter expiry notifications (FIXED)
+    if (expiringParams && expiringParams.length > 0) {
+      console.log(`Processing ${expiringParams.length} expiring parameters`);
+      
+      for (const param of expiringParams) {
+        try {
+          console.log(`Processing expiring parameter ${param.name} (expires: ${param.expiry_date})`);
+          
+          const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers();
+          if (authError) throw new Error(`Failed to fetch auth users: ${authError.message}`);
+          
+          const { data: profiles, error: profilesError } = await supabase
+            .from('profiles')
+            .select('id, full_name, dairy_unit_id')
+            .eq('dairy_unit_id', param.dairy_unit_id);
+          if (profilesError) throw new Error(`Failed to fetch profiles: ${profilesError.message}`);
+          
+          if (!profiles || profiles.length === 0) {
+            console.log(`No users found for dairy unit ${param.dairy_unit_id}`);
+            continue;
           }
-        }
-        for (const user of usersWithEmails) {
-          try {
-            // Create a reminder-like object for parameter expiry notifications
-            const fakeReminder = {
-              id: `param-${param.id}`,
-              parameter_id: param.id,
-              dairy_unit_id: param.dairy_unit_id,
-              reminder_date: currentDate,
-              reminder_time: '10:00',
-              custom_message: 'This license is expiring soon. Please renew it to maintain compliance.',
-              statutory_parameters: {
-                name: param.name,
-                category: param.category,
-                expiry_date: param.expiry_date,
-                description: param.description
-              }
-            };
-            
-            // Generate professional email content using the same template
-            const emailTemplate = generateEmailTemplate(fakeReminder, user.name);
-            const emailResult = await sendEmailWithResend(user.email, emailTemplate.subject, emailTemplate.htmlContent, emailTemplate.textContent);
-            console.log(`Parameter expiry email sent to ${user.email}:`, emailResult);
-            await new Promise(resolve => setTimeout(resolve, 2000));
-          } catch (emailError) {
-            console.error(`Failed to send parameter expiry email to ${user.email}:`, emailError);
+          
+          const usersWithEmails: Array<{email: string, name: string}> = [];
+          for (const profile of profiles) {
+            const authUser = authUsers.users.find(u => u.id === profile.id);
+            if (authUser?.email) {
+              usersWithEmails.push({ email: authUser.email, name: profile.full_name || 'Team Member' });
+            }
           }
+          
+          if (usersWithEmails.length === 0) {
+            console.log(`No email addresses found for dairy unit ${param.dairy_unit_id}`);
+            continue;
+          }
+          
+          // Calculate days until expiry
+          const expiryDate = new Date(param.expiry_date);
+          const todayDate = new Date(currentDate);
+          const daysUntilExpiry = Math.ceil((expiryDate.getTime() - todayDate.getTime()) / (1000 * 60 * 60 * 24));
+          
+          console.log(`Parameter ${param.name} expires in ${daysUntilExpiry} days`);
+          
+          for (const user of usersWithEmails) {
+            try {
+              // Create a reminder-like object for parameter expiry notifications
+              const fakeReminder = {
+                id: `param-${param.id}`,
+                parameter_id: param.id,
+                dairy_unit_id: param.dairy_unit_id,
+                reminder_date: currentDate,
+                reminder_time: '10:00',
+                custom_message: `This license expires in ${daysUntilExpiry} day${daysUntilExpiry !== 1 ? 's' : ''}. Please renew it to maintain compliance.`,
+                statutory_parameters: {
+                  name: param.name,
+                  category: param.category,
+                  expiry_date: param.expiry_date,
+                  description: param.description
+                }
+              };
+              
+              const emailTemplate = generateEmailTemplate(fakeReminder, user.name, user.email);
+              const emailResult = await sendEmailWithResend(user.email, emailTemplate.subject, emailTemplate.htmlContent, emailTemplate.textContent);
+              console.log(`Parameter expiry email sent to ${user.email}:`, emailResult);
+              totalEmailsSent++;
+              await new Promise(resolve => setTimeout(resolve, 2000));
+            } catch (emailError) {
+              console.error(`Failed to send parameter expiry email to ${user.email}:`, emailError);
+            }
+          }
+        } catch (err) {
+          console.error('Error processing parameter expiry notification:', err);
         }
-      } catch (err) {
-        console.error('Error processing parameter expiry notification:', err);
       }
     }
 
@@ -662,6 +663,7 @@ const handler = async (req: Request): Promise<Response> => {
       message: 'Resend email processing completed',
       totalEmailsSent,
       processedReminders: emailResults.length,
+      processedExpiringParams: expiringParams?.length || 0,
       results: emailResults,
       debug: {
         currentDate,

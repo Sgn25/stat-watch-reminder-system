@@ -199,7 +199,7 @@ export const ParameterDetailPopup = ({ parameter, isOpen, onClose }: ParameterDe
   return (
     <>
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="max-w-5xl max-h-[85vh] bg-gray-900 border-gray-700 flex flex-col">
+        <DialogContent className="max-w-6xl max-h-[90vh] bg-gray-900 border-gray-700 flex flex-col">
           <DialogHeader className="flex-shrink-0">
             <DialogTitle className="text-white text-xl font-bold">
               Parameter Details
@@ -302,7 +302,7 @@ export const ParameterDetailPopup = ({ parameter, isOpen, onClose }: ParameterDe
                       <CardTitle className="text-white">Update History</CardTitle>
                     </CardHeader>
                     <CardContent className="flex-1 overflow-hidden p-0">
-                      <ScrollArea className="h-96 p-6">
+                      <ScrollArea className="h-[400px] p-6">
                         {isLoadingHistory ? (
                           <div className="text-center py-8">
                             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-400 mx-auto"></div>
@@ -354,7 +354,7 @@ export const ParameterDetailPopup = ({ parameter, isOpen, onClose }: ParameterDe
                       <CardTitle className="text-white">Additional Notes</CardTitle>
                     </CardHeader>
                     <CardContent className="flex-1 overflow-hidden p-0">
-                      <div className="h-96 flex flex-col">
+                      <div className="h-[450px] flex flex-col">
                         {/* Add Note Form - Fixed at top */}
                         <div className="flex-shrink-0 p-4 bg-gray-700 border-b border-gray-600">
                           <h4 className="text-white font-medium mb-3">Add New Note</h4>
@@ -363,13 +363,13 @@ export const ParameterDetailPopup = ({ parameter, isOpen, onClose }: ParameterDe
                               placeholder="Enter your note here..."
                               value={newNote}
                               onChange={(e) => setNewNote(e.target.value)}
-                              className="flex-1 bg-gray-600 border-gray-500 text-white placeholder-gray-400 resize-none"
+                              className="flex-1 bg-gray-600 border-gray-500 text-white placeholder-gray-400 resize-none min-h-[60px]"
                               rows={2}
                             />
                             <Button
                               onClick={handleAddNote}
                               disabled={!newNote.trim() || isAddingNote}
-                              className="bg-blue-600 hover:bg-blue-700 self-end"
+                              className="bg-blue-600 hover:bg-blue-700 self-end px-4"
                             >
                               <Plus className="w-4 h-4" />
                             </Button>
@@ -399,7 +399,7 @@ export const ParameterDetailPopup = ({ parameter, isOpen, onClose }: ParameterDe
                                           <Textarea
                                             value={editingNoteText}
                                             onChange={(e) => setEditingNoteText(e.target.value)}
-                                            className="bg-gray-600 border-gray-500 text-white resize-none"
+                                            className="bg-gray-600 border-gray-500 text-white resize-none min-h-[80px]"
                                             rows={3}
                                           />
                                           <div className="flex gap-2">
@@ -426,7 +426,7 @@ export const ParameterDetailPopup = ({ parameter, isOpen, onClose }: ParameterDe
                                         </div>
                                       ) : (
                                         <div>
-                                          <p className="text-white mb-3 whitespace-pre-wrap">{note.note_text}</p>
+                                          <p className="text-white mb-3 whitespace-pre-wrap leading-relaxed">{note.note_text}</p>
                                           <div className="flex items-center justify-between">
                                             <div className="flex items-center gap-4 text-sm text-gray-400">
                                               <div className="flex items-center gap-1">
@@ -443,7 +443,7 @@ export const ParameterDetailPopup = ({ parameter, isOpen, onClose }: ParameterDe
                                                 size="sm"
                                                 variant="outline"
                                                 onClick={() => startEditingNote(note)}
-                                                className="border-gray-500 text-gray-300 hover:bg-gray-600"
+                                                className="border-gray-500 text-gray-300 hover:bg-gray-600 px-2"
                                               >
                                                 <Edit className="w-4 h-4" />
                                               </Button>
@@ -452,7 +452,7 @@ export const ParameterDetailPopup = ({ parameter, isOpen, onClose }: ParameterDe
                                                 variant="outline"
                                                 onClick={() => handleDeleteNote(note.id)}
                                                 disabled={isDeletingNote}
-                                                className="border-red-500 text-red-400 hover:bg-red-500 hover:text-white"
+                                                className="border-red-500 text-red-400 hover:bg-red-500 hover:text-white px-2"
                                               >
                                                 <Trash2 className="w-4 h-4" />
                                               </Button>
