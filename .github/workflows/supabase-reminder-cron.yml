@@ -2,7 +2,7 @@ name: Daily Supabase Reminder
 
 on:
   schedule:
-    - cron: '15 13 * * *' # 6:00 UTC = 11:30 AM IST
+    - cron: '0 4 * * *' # 4:00 UTC = 10:00 AM IST
   workflow_dispatch:
 
 jobs:
