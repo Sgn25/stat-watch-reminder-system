@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Calendar, AlertTriangle, CheckCircle, XCircle, Edit, Trash2, Clock } from 'lucide-react';
+import { Calendar, AlertTriangle, CheckCircle, XCircle, Edit, Trash2, Clock, Bell } from 'lucide-react';
 import { StatutoryParameter } from '@/hooks/useStatutoryParameters';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -8,6 +8,8 @@ import { EditParameterForm } from '@/components/EditParameterForm';
 import { formatDate } from '@/lib/dateUtils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { ParameterDetailPopup } from '@/components/ParameterDetailPopup';
+import { useParameterReminders } from '@/hooks/useParameterReminders';
+import { AddParameterReminderForm } from '@/components/AddParameterReminderForm';
 
 interface ParameterCardProps {
   parameter: StatutoryParameter;
@@ -83,9 +85,15 @@ export const ParameterCard = ({ parameter, viewMode = 'grid' }: ParameterCardPro
   const { deleteParameter, isDeletingParameter } = useStatutoryParameters();
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDetailPopupOpen, setIsDetailPopupOpen] = useState(false);
+  const [isAddReminderDialogOpen, setIsAddReminderDialogOpen] = useState(false);
+  const { reminders, isLoading: isLoadingReminders } = useParameterReminders(parameter.id);
 
   const badge = getStatusAndBadge(parameter.daysUntilExpiry);
   const daysText = getDaysRemainingText(parameter.daysUntilExpiry);
+
+  // Get upcoming reminders (not sent yet)
+  const upcomingReminders = reminders.filter(reminder => !reminder.is_sent);
+  const nextReminder = upcomingReminders[0]; // First upcoming reminder
 
   const handleDelete = () => {
     if (window.confirm('Are you sure you want to delete this parameter?')) {
@@ -121,7 +129,7 @@ export const ParameterCard = ({ parameter, viewMode = 'grid' }: ParameterCardPro
           {parameter.description && (
             <p className="text-sm text-gray-600 mb-4">{parameter.description}</p>
           )}
-          <div className="space-y-2 mb-6">
+          <div className="space-y-2 mb-4">
             <div className="flex items-center text-sm text-gray-600">
               <Calendar className="w-4 h-4 mr-2" />
               <span>Issued: {toDisplayDate(parameter.issue_date)}</span>
@@ -131,6 +139,47 @@ export const ParameterCard = ({ parameter, viewMode = 'grid' }: ParameterCardPro
               <span>Expires: {toDisplayDate(parameter.expiry_date)}</span>
             </div>
           </div>
+          
+          {/* Reminder Information */}
+          {isLoadingReminders ? (
+            <div className="mb-4 bg-gray-50 border border-gray-200 rounded-lg p-3">
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 bg-gray-200 rounded animate-pulse"></div>
+                <span className="text-sm text-gray-500">Loading reminders...</span>
+              </div>
+            </div>
+          ) : (
+            <div className="mb-4">
+              {upcomingReminders.length > 0 ? (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Bell className="w-4 h-4 text-green-600" />
+                    <span className="text-sm font-medium text-green-800">
+                      {upcomingReminders.length} Reminder{upcomingReminders.length > 1 ? 's' : ''} Set
+                    </span>
+                  </div>
+                  {nextReminder && (
+                    <div className="text-xs text-green-700">
+                      Next: {toDisplayDate(nextReminder.reminder_date)} at {nextReminder.reminder_time}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div 
+                  className="bg-gray-50 border border-gray-200 rounded-lg p-3 cursor-pointer hover:bg-gray-100 transition-colors"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsAddReminderDialogOpen(true);
+                  }}
+                >
+                  <div className="flex items-center gap-2">
+                    <Bell className="w-4 h-4 text-gray-400" />
+                    <span className="text-sm text-gray-600">No reminders set</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
           {/* Days remaining at bottom */}
           <div className="mt-auto pt-2 flex items-center justify-between">
             <span className={`text-sm font-semibold ${daysText.color}`}>{daysText.text}</span>
@@ -194,6 +243,32 @@ export const ParameterCard = ({ parameter, viewMode = 'grid' }: ParameterCardPro
             {parameter.description && (
               <div className="text-xs text-gray-400 mt-1">{parameter.description}</div>
             )}
+            {/* Reminder Information for List View */}
+            {isLoadingReminders ? (
+              <div className="flex items-center gap-2 mt-2">
+                <div className="w-3 h-3 bg-gray-600 rounded animate-pulse"></div>
+                <span className="text-xs text-gray-500">Loading...</span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 mt-2">
+                <Bell className="w-3 h-3 text-gray-400" />
+                {upcomingReminders.length > 0 ? (
+                  <span className="text-xs text-green-400">
+                    {upcomingReminders.length} reminder{upcomingReminders.length > 1 ? 's' : ''} • Next: {toDisplayDate(nextReminder?.reminder_date || '')}
+                  </span>
+                ) : (
+                  <span 
+                    className="text-xs text-gray-400 cursor-pointer hover:text-gray-300 transition-colors"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setIsAddReminderDialogOpen(true);
+                    }}
+                  >
+                    No reminders
+                  </span>
+                )}
+              </div>
+            )}
           </div>
           <div className="flex gap-2 ml-4" onClick={e => e.stopPropagation()}>
             <TooltipProvider>
@@ -248,6 +323,19 @@ export const ParameterCard = ({ parameter, viewMode = 'grid' }: ParameterCardPro
           setIsEditDialogOpen(true);
         }}
       />
+      
+      {/* Add Reminder Dialog */}
+      <Dialog open={isAddReminderDialogOpen} onOpenChange={setIsAddReminderDialogOpen}>
+        <DialogContent className="sm:max-w-md bg-gray-800 border-gray-700">
+          <DialogHeader>
+            <DialogTitle className="text-white">Set Reminder for {parameter.name}</DialogTitle>
+          </DialogHeader>
+          <AddParameterReminderForm 
+            parameter={parameter} 
+            onClose={() => setIsAddReminderDialogOpen(false)} 
+          />
+        </DialogContent>
+      </Dialog>
     </>
   );
 };

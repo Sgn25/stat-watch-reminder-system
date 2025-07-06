@@ -76,8 +76,10 @@ export const useReminders = () => {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['reminders'] });
+      // Also invalidate parameter-specific reminder queries
+      queryClient.invalidateQueries({ queryKey: ['parameter-reminders', data.parameter_id] });
       toast({
         title: "Success",
         description: "Reminder added successfully",
@@ -111,8 +113,10 @@ export const useReminders = () => {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['reminders'] });
+      // Also invalidate parameter-specific reminder queries
+      queryClient.invalidateQueries({ queryKey: ['parameter-reminders', data.parameter_id] });
       toast({
         title: "Success",
         description: "Reminder updated successfully",
@@ -137,8 +141,10 @@ export const useReminders = () => {
 
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['reminders'] });
+      // For delete, we need to invalidate all parameter-reminders queries since we don't have the parameter_id
+      queryClient.invalidateQueries({ queryKey: ['parameter-reminders'] });
       toast({
         title: "Success",
         description: "Reminder deleted successfully",
