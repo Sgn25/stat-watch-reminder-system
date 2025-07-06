@@ -132,8 +132,7 @@ const handler = async (req: Request): Promise<Response> => {
           dairy_unit_id
         )
       `)
-      .eq('reminder_date', today)
-      .eq('is_sent', false);
+      .eq('reminder_date', today); // Removed .eq('is_sent', false)
 
     if (userRemindersError) {
       console.error('Error fetching user reminders:', userRemindersError);
@@ -180,19 +179,7 @@ const handler = async (req: Request): Promise<Response> => {
             
             if (!isSubscribed) {
               console.log(`Skipping email for reminder ${reminder.id} - user ${reminder.user_id} is unsubscribed or no subscription row found`);
-              // Still mark reminder as sent to avoid reprocessing
-              const { error: updateError } = await supabase
-                .from('reminders')
-                .update({ is_sent: true, updated_at: new Date().toISOString() })
-                .eq('id', reminder.id);
-              
-              if (updateError) {
-                console.error(`Error updating reminder ${reminder.id}:`, updateError);
-                results.userReminders.errors++;
-              } else {
-                console.log(`Successfully processed user reminder (skipped email): ${reminder.id}`);
-                results.userReminders.sent++;
-              }
+              // Do NOT mark reminder as sent, so it can be sent again on next run
               continue;
             }
 
@@ -282,20 +269,20 @@ const handler = async (req: Request): Promise<Response> => {
               console.log(`Skipping email for reminder ${reminder.id} - missing email configuration or user email`);
             }
             
-            // Mark reminder as sent
-            const { error: updateError } = await supabase
-              .from('reminders')
-              .update({ is_sent: true, updated_at: new Date().toISOString() })
-              .eq('id', reminder.id);
+            // After sending email, do NOT update is_sent to true
+            // const { error: updateError } = await supabase
+            //   .from('reminders')
+            //   .update({ is_sent: true, updated_at: new Date().toISOString() })
+            //   .eq('id', reminder.id);
 
-            if (updateError) {
-              console.error(`Error updating reminder ${reminder.id}:`, updateError);
-              results.userReminders.errors++;
-            } else {
-              console.log(`Successfully processed user reminder: ${reminder.id}`);
-              results.userReminders.sent++;
-              emailsSent++;
-            }
+            // if (updateError) {
+            //   console.error(`Error updating reminder ${reminder.id}:`, updateError);
+            //   results.userReminders.errors++;
+            // } else {
+            //   console.log(`Successfully processed user reminder: ${reminder.id}`);
+            //   results.userReminders.sent++;
+            //   emailsSent++;
+            // }
           } catch (error) {
             console.error(`Error processing user reminder ${reminder.id}:`, error);
             results.userReminders.errors++;
