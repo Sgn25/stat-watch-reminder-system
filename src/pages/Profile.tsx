@@ -8,16 +8,18 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { User, Mail, Building2, Lock, Save } from 'lucide-react';
+import { User, Mail, Building2, Lock, Save, Bell, BellOff } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useQueryClient } from '@tanstack/react-query';
+import { useEmailSubscription } from '@/hooks/useEmailSubscription';
 
 const Profile = () => {
   const { profile } = useUserProfile();
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { isSubscribed, unsubscribe, subscribe, isUnsubscribing, isSubscribing } = useEmailSubscription();
   const [isLoading, setIsLoading] = useState(false);
   const [fullName, setFullName] = useState(profile?.full_name || '');
   const [currentPassword, setCurrentPassword] = useState('');
@@ -224,6 +226,64 @@ const Profile = () => {
                 <Lock className="w-4 h-4 mr-2" />
                 Update Password
               </Button>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gray-800 border-gray-700">
+            <CardHeader>
+              <CardTitle className="text-white flex items-center gap-2">
+                <Mail className="w-5 h-5 text-green-400" />
+                Email Notifications
+              </CardTitle>
+              <CardDescription className="text-gray-400">
+                Manage your email reminder preferences
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between p-4 bg-gray-700 rounded-lg">
+                <div className="flex items-center gap-3">
+                  {isSubscribed ? (
+                    <Bell className="w-5 h-5 text-green-400" />
+                  ) : (
+                    <BellOff className="w-5 h-5 text-gray-400" />
+                  )}
+                  <div>
+                    <h3 className="text-white font-medium">Email Reminders</h3>
+                    <p className="text-sm text-gray-400">
+                      {isSubscribed 
+                        ? "You are currently receiving email reminders for user-set reminders and 5-day expiry notifications."
+                        : "You are not receiving email reminders. You'll miss important notifications about parameter expirations."
+                      }
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  onClick={isSubscribed ? unsubscribe : subscribe}
+                  disabled={isUnsubscribing || isSubscribing}
+                  variant={isSubscribed ? "destructive" : "default"}
+                  className={isSubscribed 
+                    ? "bg-red-600 hover:bg-red-700" 
+                    : "bg-green-600 hover:bg-green-700"
+                  }
+                >
+                  {isUnsubscribing || isSubscribing ? (
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                  ) : isSubscribed ? (
+                    <BellOff className="w-4 h-4 mr-2" />
+                  ) : (
+                    <Bell className="w-4 h-4 mr-2" />
+                  )}
+                  {isUnsubscribing ? "Unsubscribing..." : 
+                   isSubscribing ? "Subscribing..." : 
+                   isSubscribed ? "Unsubscribe" : "Subscribe Now"}
+                </Button>
+              </div>
+              
+              <div className="text-xs text-gray-500 space-y-1">
+                <p>• User-set reminders: Custom reminders you create for specific parameters</p>
+                <p>• 5-day expiry notifications: Automatic alerts for parameters expiring within 5 days</p>
+                <p>• You can change this setting at any time</p>
+              </div>
             </CardContent>
           </Card>
         </div>

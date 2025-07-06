@@ -163,6 +163,39 @@ const handler = async (req: Request): Promise<Response> => {
               continue;
             }
 
+            // Check if user is subscribed to email notifications
+            const { data: emailSubscription, error: subscriptionError } = await supabase
+              .from('email_subscriptions')
+              .select('is_subscribed')
+              .eq('user_id', reminder.user_id)
+              .eq('dairy_unit_id', reminder.dairy_unit_id)
+              .single();
+
+            if (subscriptionError && subscriptionError.code !== 'PGRST116') {
+              console.error(`Error checking email subscription for user ${reminder.user_id}:`, subscriptionError);
+            }
+
+            // Only send email if user is subscribed (default to true if no subscription found)
+            const isSubscribed = emailSubscription?.is_subscribed ?? true;
+            
+            if (!isSubscribed) {
+              console.log(`Skipping email for reminder ${reminder.id} - user ${reminder.user_id} is unsubscribed`);
+              // Still mark reminder as sent to avoid reprocessing
+              const { error: updateError } = await supabase
+                .from('reminders')
+                .update({ is_sent: true, updated_at: new Date().toISOString() })
+                .eq('id', reminder.id);
+              
+              if (updateError) {
+                console.error(`Error updating reminder ${reminder.id}:`, updateError);
+                results.userReminders.errors++;
+              } else {
+                console.log(`Successfully processed user reminder (skipped email): ${reminder.id}`);
+                results.userReminders.sent++;
+              }
+              continue;
+            }
+
             // Send email using Resend
             if (resendApiKey && resendFrom && authUser.user.email) {
               const terminology = getCategoryTerminology(reminder.statutory_parameters?.category || '');
@@ -324,7 +357,32 @@ const handler = async (req: Request): Promise<Response> => {
               // Get user email from auth.users table
               const { data: authUser, error: authError } = await supabase.auth.admin.getUserById(user.id);
               
-              if (resendApiKey && resendFrom && authUser?.user?.email) {
+              if (authError || !authUser?.user?.email) {
+                console.log(`Skipping expiry email for parameter ${param.id} to ${user.id} - missing user email`);
+                continue;
+              }
+
+              // Check if user is subscribed to email notifications
+              const { data: emailSubscription, error: subscriptionError } = await supabase
+                .from('email_subscriptions')
+                .select('is_subscribed')
+                .eq('user_id', user.id)
+                .eq('dairy_unit_id', param.dairy_unit_id)
+                .single();
+
+              if (subscriptionError && subscriptionError.code !== 'PGRST116') {
+                console.error(`Error checking email subscription for user ${user.id}:`, subscriptionError);
+              }
+
+              // Only send email if user is subscribed (default to true if no subscription found)
+              const isSubscribed = emailSubscription?.is_subscribed ?? true;
+              
+              if (!isSubscribed) {
+                console.log(`Skipping expiry email for parameter ${param.id} to ${user.id} - user is unsubscribed`);
+                continue;
+              }
+              
+              if (resendApiKey && resendFrom) {
                 // Format dates as DD/MM/YYYY
                 function formatDateDMY(dateStr) {
                   const d = new Date(dateStr);

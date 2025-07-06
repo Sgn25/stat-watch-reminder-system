@@ -253,6 +253,57 @@ export type Database = {
           },
         ]
       }
+      email_subscriptions: {
+        Row: {
+          id: string
+          user_id: string
+          dairy_unit_id: string
+          email_address: string
+          is_subscribed: boolean
+          subscribed_at: string
+          unsubscribed_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          dairy_unit_id: string
+          email_address: string
+          is_subscribed?: boolean
+          subscribed_at?: string
+          unsubscribed_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          dairy_unit_id?: string
+          email_address?: string
+          is_subscribed?: boolean
+          subscribed_at?: string
+          unsubscribed_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_subscriptions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_subscriptions_dairy_unit_id_fkey"
+            columns: ["dairy_unit_id"]
+            isOneToOne: false
+            referencedRelation: "dairy_units"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
       statutory_parameters: {
         Row: {
           category: string

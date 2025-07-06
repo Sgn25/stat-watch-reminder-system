@@ -197,7 +197,29 @@ All colors MUST be HSL.
   animation: slideIn 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.transition-smooth {
+/* Mobile menu scrollbar styles */
+.mobile-menu-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(75 85 99) rgb(31 41 55);
+}
+
+.mobile-menu-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.mobile-menu-scrollbar::-webkit-scrollbar-track {
+  background: rgb(31 41 55);
+  border-radius: 3px;
+}
+
+.mobile-menu-scrollbar::-webkit-scrollbar-thumb {
+  background: rgb(75 85 99);
+  border-radius: 3px;
+}
+
+.mobile-menu-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgb(107 114 128);
+}
 
 /* Custom scrollbar styles */
 .custom-scrollbar {
@@ -221,6 +243,4 @@ All colors MUST be HSL.
 
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: rgb(107 114 128);
-}
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }

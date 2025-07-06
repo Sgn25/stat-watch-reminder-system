@@ -31,7 +31,7 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
             <div
               className="fixed inset-y-0 left-0 w-80 max-w-[85vw] z-50 flex flex-col bg-gray-800 border-r border-gray-700 overflow-hidden"
             >
-              <div className="flex items-center justify-between p-4 border-b border-gray-700">
+              <div className="flex items-center justify-between p-4 border-b border-gray-700 bg-gray-800">
                 <h1 className="text-xl font-bold text-white">StatMonitor</h1>
                 <DrawerClose asChild>
                   <button 
@@ -42,7 +42,7 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
                   </button>
                 </DrawerClose>
               </div>
-              <div className="flex-1 overflow-y-auto">
+              <div className="flex-1 overflow-y-auto mobile-menu-scrollbar">
                 <Sidebar mobile onNavigate={() => setDrawerOpen(false)} />
               </div>
             </div>
