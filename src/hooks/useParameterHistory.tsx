@@ -40,12 +40,14 @@ export const useParameterHistory = (parameterId: string) => {
         .from('parameter_history')
         .select('*')
         .eq('parameter_id', parameterId)
-        .order('created_at', { ascending: true });
+        .order('created_at', { ascending: false });
       
       if (rawError) {
         console.error('Error fetching parameter history:', rawError);
         throw rawError;
       }
+      
+      console.log('Raw parameter history data:', rawHistory);
       
       if (!rawHistory || rawHistory.length === 0) {
         console.log('No parameter history found for:', parameterId);
@@ -80,6 +82,7 @@ export const useParameterHistory = (parameterId: string) => {
       return historyWithUserNames;
     },
     enabled: !!parameterId,
+    refetchInterval: 5000, // Refetch every 5 seconds to catch real-time updates
   });
 
   // Fetch parameter notes with proper user name resolution

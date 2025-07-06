@@ -185,6 +185,8 @@ export const useStatutoryParameters = (options?: { refetchHistory?: () => void }
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['statutory-parameters'] });
       queryClient.invalidateQueries({ queryKey: ['parameter-history'] });
+      // Invalidate all parameter history queries
+      queryClient.invalidateQueries({ queryKey: ['parameter-history'] });
       if (options?.refetchHistory) options.refetchHistory();
       toast({
         title: "Success",

@@ -2,6 +2,54 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.50.2";
 
+// Import category-specific terminology helper
+const getCategoryTerminology = (category: string) => {
+  switch (category) {
+    case 'License':
+      return {
+        title: 'License Renewal Required',
+        actionText: 'Renew License Now',
+        description: 'Don\'t let your license expire! Take action today to maintain compliance and avoid potential penalties.'
+      };
+    case 'Certificate':
+      return {
+        title: 'Certificate Renewal Required',
+        actionText: 'Renew Certificate Now',
+        description: 'Don\'t let your certificate expire! Take action today to maintain compliance and avoid potential penalties.'
+      };
+    case 'Permit':
+      return {
+        title: 'Permit Renewal Required',
+        actionText: 'Renew Permit Now',
+        description: 'Don\'t let your permit expire! Take action today to maintain compliance and avoid potential penalties.'
+      };
+    case 'Insurance':
+      return {
+        title: 'Insurance Renewal Required',
+        actionText: 'Renew Insurance Now',
+        description: 'Don\'t let your insurance expire! Take action today to maintain compliance and avoid potential penalties.'
+      };
+    case 'Contracts':
+      return {
+        title: 'Contract Renewal Required',
+        actionText: 'Renew Contract Now',
+        description: 'Don\'t let your contract expire! Take action today to maintain compliance and avoid potential penalties.'
+      };
+    case 'Approval':
+      return {
+        title: 'Approval Renewal Required',
+        actionText: 'Renew Approval Now',
+        description: 'Don\'t let your approval expire! Take action today to maintain compliance and avoid potential penalties.'
+      };
+    default:
+      return {
+        title: 'Parameter Renewal Required',
+        actionText: 'Renew Parameter Now',
+        description: 'Don\'t let your parameter expire! Take action today to maintain compliance and avoid potential penalties.'
+      };
+  }
+};
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -117,20 +165,21 @@ const handler = async (req: Request): Promise<Response> => {
 
             // Send email using Resend
             if (resendApiKey && resendFrom && authUser.user.email) {
-              const emailSubject = `Reminder: ${reminder.statutory_parameters?.name} - ${reminder.reminder_date}`;
+              const terminology = getCategoryTerminology(reminder.statutory_parameters?.category || '');
+              const emailSubject = `Reminder: ${reminder.statutory_parameters?.name} (${reminder.statutory_parameters?.category}) - ${reminder.reminder_date}`;
               const emailBody = `
-                <h2>Reminder Notification</h2>
+                <h2>${terminology.title}</h2>
                 <p>Hello ${userProfile.full_name || 'User'},</p>
-                <p>This is a reminder for your statutory parameter:</p>
+                <p>This is a reminder for your ${reminder.statutory_parameters?.category?.toLowerCase() || 'parameter'}:</p>
                 <ul>
-                  <li><strong>Parameter:</strong> ${reminder.statutory_parameters?.name}</li>
+                  <li><strong>${reminder.statutory_parameters?.category || 'Parameter'}:</strong> ${reminder.statutory_parameters?.name}</li>
                   <li><strong>Category:</strong> ${reminder.statutory_parameters?.category}</li>
                   <li><strong>Expiry Date:</strong> ${reminder.statutory_parameters?.expiry_date}</li>
                   <li><strong>Reminder Date:</strong> ${reminder.reminder_date}</li>
                 </ul>
                 ${reminder.custom_message ? `<p><strong>Custom Message:</strong> ${reminder.custom_message}</p>` : ''}
-                <p>Please take necessary action before the expiry date.</p>
-                <p>Best regards,<br>Stat Watch Reminder System</p>
+                <p>Please take necessary action before the expiry date to maintain compliance.</p>
+                <p>Best regards,<br>StatMonitor - Your Compliance Partner</p>
               `;
 
               const emailResponse = await fetch('https://api.resend.com/emails', {
@@ -243,34 +292,35 @@ const handler = async (req: Request): Promise<Response> => {
                 const expiryDateDMY = formatDateDMY(param.expiry_date);
                 const todayDMY = formatDateDMY(today);
                 const daysUntilExpiry = Math.ceil((new Date(param.expiry_date).getTime() - new Date(today).getTime()) / (1000 * 60 * 60 * 24));
+                const terminology = getCategoryTerminology(param.category);
                 const emailSubject = `Urgent ! "${param.name}" expires on "${expiryDateDMY}"`;
                 const emailBody = `
                   <div style="font-family: Arial, sans-serif; background: #f7f9fb; padding: 0; margin: 0;">
                     <div style="max-width: 600px; margin: 40px auto; background: #fff; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.07);">
                       <div style="background: #2563eb; color: #fff; padding: 24px 0; text-align: center;">
-                        <div style="font-size: 28px; font-weight: bold;">License Renewal Required</div>
+                        <div style="font-size: 28px; font-weight: bold;">${terminology.title}</div>
                         <div style="font-size: 15px; margin-top: 4px;">StatMonitor - Your Compliance Partner</div>
                       </div>
                       <div style="padding: 32px 32px 24px 32px;">
                         <div style="font-size: 17px; margin-bottom: 16px;">Hello, ${user.full_name || 'User'},</div>
                         <div style="background: #fee2e2; color: #b91c1c; border-radius: 8px; padding: 16px; margin-bottom: 24px;">
                           <div style="font-weight: bold; font-size: 16px; margin-bottom: 4px;">⚠️ Action Required</div>
-                          <div>Your license <b>${param.name}</b> expires on <b>${expiryDateDMY}</b></div>
+                          <div>Your ${param.category.toLowerCase()} <b>${param.name}</b> expires on <b>${expiryDateDMY}</b></div>
                         </div>
                         <div style="background: #f1f5f9; border-radius: 8px; padding: 16px; margin-bottom: 24px;">
-                          <div style="font-weight: bold; font-size: 16px; margin-bottom: 8px;">📄 License Information</div>
-                          <div><b>License Name:</b> ${param.name}</div>
+                          <div style="font-weight: bold; font-size: 16px; margin-bottom: 8px;">📄 ${param.category} Information</div>
+                          <div><b>${param.category} Name:</b> ${param.name}</div>
                           <div><b>Category:</b> ${param.category}</div>
                           <div><b>Expiry Date:</b> ${expiryDateDMY}</div>
                         </div>
                         <div style="background: #e0edff; border-radius: 8px; padding: 16px; margin-bottom: 24px;">
                           <div style="font-weight: bold; font-size: 15px; margin-bottom: 4px;">ℹ️ Additional Note</div>
-                          <div>This license expires in <b>${daysUntilExpiry} days</b>. Please renew it to maintain compliance.</div>
+                          <div>This ${param.category.toLowerCase()} expires in <b>${daysUntilExpiry} days</b>. Please renew it to maintain compliance.</div>
                         </div>
                         <div style="text-align: center; margin-bottom: 24px;">
-                          <a href="#" style="background: #2563eb; color: #fff; padding: 12px 28px; border-radius: 6px; text-decoration: none; font-weight: bold; font-size: 16px;">Renew License Now</a>
+                          <a href="#" style="background: #2563eb; color: #fff; padding: 12px 28px; border-radius: 6px; text-decoration: none; font-weight: bold; font-size: 16px;">${terminology.actionText}</a>
                         </div>
-                        <div style="font-size: 14px; color: #374151;">Don't let your license expire! Take action today to maintain compliance and avoid potential penalties.</div>
+                        <div style="font-size: 14px; color: #374151;">${terminology.description}</div>
                       </div>
                       <div style="background: #f1f5f9; color: #64748b; font-size: 13px; text-align: center; padding: 18px 0;">
                         This is an automated reminder from <b>StatMonitor</b><br>

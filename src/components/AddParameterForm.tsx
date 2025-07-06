@@ -6,6 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Loader2 } from 'lucide-react';
+import { PARAMETER_CATEGORIES } from '@/lib/constants';
 
 interface AddParameterFormProps {
   onClose: () => void;
@@ -28,16 +29,7 @@ export const AddParameterForm = ({ onClose }: AddParameterFormProps) => {
     expiry_date: '',
   });
 
-  const categories = [
-    'License',
-    'Permit',
-    'Contracts',
-    'Certification',
-    'Registration',
-    'Approval',
-    'Authorization',
-    'Other'
-  ];
+  const categories = PARAMETER_CATEGORIES;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

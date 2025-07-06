@@ -6,6 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Loader2 } from 'lucide-react';
+import { PARAMETER_CATEGORIES } from '@/lib/constants';
 
 interface EditParameterFormProps {
   parameter: StatutoryParameter;
@@ -29,21 +30,15 @@ export const EditParameterForm = ({ parameter, onClose }: EditParameterFormProps
     expiry_date: parameter.expiry_date,
   });
 
-  const categories = [
-    'License',
-    'Permit',
-    'Contracts',
-    'Certification',
-    'Registration',
-    'Approval',
-    'Authorization',
-    'Other'
-  ];
+  const categories = PARAMETER_CATEGORIES;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     updateParameter({ id: parameter.id, ...formData });
-    onClose();
+    // Add a small delay to ensure the update is processed before closing
+    setTimeout(() => {
+      onClose();
+    }, 100);
   };
 
   const handleChange = (field: string, value: string) => {

@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { useStatutoryParameters } from '@/hooks/useStatutoryParameters';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { Loader2 } from 'lucide-react';
+import { PARAMETER_CATEGORIES } from '@/lib/constants';
 
 const Index = () => {
   const { parameters, isLoading } = useStatutoryParameters();
@@ -22,7 +23,7 @@ const Index = () => {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
-  const categories = ['All', 'License', 'Certificate', 'Permit', 'Registration', 'Compliance', 'Insurance'];
+  const categories = ['All', ...PARAMETER_CATEGORIES];
 
   const filteredParameters = parameters.filter(param => {
     const matchesSearch = param.name.toLowerCase().includes(searchTerm.toLowerCase()) ||

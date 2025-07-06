@@ -8,6 +8,7 @@ import { Edit, Calendar, FileText, Building2, Clock, User, MessageSquare, X } fr
 import { format } from 'date-fns';
 import { useParameterHistory } from '@/hooks/useParameterHistory';
 import { useAuth } from '@/hooks/useAuth';
+import { useDairyUnits } from '@/hooks/useDairyUnits';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -36,9 +37,17 @@ export const ParameterDetailPopup: React.FC<ParameterDetailPopupProps> = ({
   onEdit,
 }) => {
   const { user } = useAuth();
-  const { history, notes, addNote } = useParameterHistory(parameter.id);
+  const { history, notes, addNote, isLoadingHistory } = useParameterHistory(parameter.id);
+  const { dairyUnits, isLoading: isLoadingDairyUnits } = useDairyUnits();
   const [newNote, setNewNote] = useState('');
   const [isAddingNote, setIsAddingNote] = useState(false);
+
+  // Get dairy unit name from the dairy units list
+  const dairyUnitName = parameter.dairy_unit_id 
+    ? dairyUnits.find(unit => unit.id === parameter.dairy_unit_id)?.name || 'Unknown Dairy Unit'
+    : 'No Dairy Unit Assigned';
+
+
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -71,7 +80,7 @@ export const ParameterDetailPopup: React.FC<ParameterDetailPopupProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] bg-gray-800 border-gray-700 text-white mx-4 overflow-hidden flex flex-col">
+      <DialogContent className="max-w-3xl max-h-[95vh] bg-gray-800 border-gray-700 text-white mx-4 overflow-hidden flex flex-col">
         <DialogHeader className="flex-shrink-0">
           <div className="flex items-center justify-between">
             <DialogTitle className="text-xl font-bold text-white pr-8">{parameter.name}</DialogTitle>
@@ -84,8 +93,8 @@ export const ParameterDetailPopup: React.FC<ParameterDetailPopupProps> = ({
           </div>
         </DialogHeader>
         
-        <div className="flex-1 overflow-hidden">
-          <div className="h-full overflow-y-auto pr-2 space-y-6">
+        <div className="flex-1 overflow-y-auto">
+          <div className="space-y-6 pr-2">
             {/* Parameter Details */}
             <div className="bg-gray-700 rounded-lg p-4 space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -132,15 +141,15 @@ export const ParameterDetailPopup: React.FC<ParameterDetailPopupProps> = ({
                   </p>
                 </div>
 
-                {parameter.dairy_unit_id && (
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-2">
-                      <Building2 className="w-4 h-4 text-blue-400" />
-                      <span className="text-sm text-gray-400">Dairy Unit</span>
-                    </div>
-                    <p className="text-white font-medium ml-6">{parameter.dairy_unit_id}</p>
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Building2 className="w-4 h-4 text-blue-400" />
+                    <span className="text-sm text-gray-400">Dairy Unit</span>
                   </div>
-                )}
+                  <p className="text-white font-medium ml-6">
+                    {isLoadingDairyUnits ? 'Loading...' : dairyUnitName}
+                  </p>
+                </div>
               </div>
 
               {parameter.description && (
@@ -182,13 +191,19 @@ export const ParameterDetailPopup: React.FC<ParameterDetailPopupProps> = ({
                   <MessageSquare className="w-5 h-5 text-amber-400" />
                   Notes ({notes.length})
                 </h3>
-                <div className="space-y-3 max-h-40 overflow-y-auto pr-2">
+                <div className="space-y-3 max-h-40 overflow-y-auto pr-2 custom-scrollbar">
                   {notes.map((note) => (
                     <div key={note.id} className="bg-gray-800 rounded-lg p-3 border border-gray-600">
                       <p className="text-gray-300 text-sm mb-2">{note.note_text}</p>
-                      <div className="flex items-center gap-2 text-xs text-gray-400">
-                        <Clock className="w-3 h-3" />
-                        <span>{format(new Date(note.created_at), 'PPp')}</span>
+                      <div className="flex items-center justify-between text-xs text-gray-400">
+                        <div className="flex items-center gap-2">
+                          <User className="w-3 h-3" />
+                          <span>By: {note.user_name || 'Unknown User'}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Clock className="w-3 h-3" />
+                          <span>{format(new Date(note.created_at), 'PPp')}</span>
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -197,25 +212,33 @@ export const ParameterDetailPopup: React.FC<ParameterDetailPopupProps> = ({
             )}
 
             {/* History Section */}
-            {history.length > 0 && (
-              <div className="bg-gray-700 rounded-lg p-4">
-                <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                  <Clock className="w-5 h-5 text-green-400" />
-                  Change History ({history.length})
-                </h3>
-                <div className="space-y-3 max-h-60 overflow-y-auto pr-2">
+            <div className="bg-gray-700 rounded-lg p-4">
+              <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                <Clock className="w-5 h-5 text-green-400" />
+                Change History ({history.length})
+              </h3>
+              {isLoadingHistory ? (
+                <div className="text-gray-400 text-sm">Loading history...</div>
+              ) : history.length > 0 ? (
+                <div className="space-y-3 max-h-80 overflow-y-auto pr-2 custom-scrollbar">
                   {history.map((entry) => (
                     <div key={entry.id} className="bg-gray-800 rounded-lg p-3 border border-gray-600">
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
-                        <Badge variant="outline" className="text-xs border-gray-500 text-gray-300 w-fit">
-                          {entry.action}
-                        </Badge>
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline" className="text-xs border-gray-500 text-gray-300 w-fit">
+                            {entry.action}
+                          </Badge>
+                          <div className="flex items-center gap-1 text-xs text-gray-400">
+                            <User className="w-3 h-3" />
+                            <span>Updated by: {entry.user_name || 'Unknown User'}</span>
+                          </div>
+                        </div>
                         <div className="flex items-center gap-2 text-xs text-gray-400">
                           <Clock className="w-3 h-3" />
                           <span>{format(new Date(entry.created_at), 'PPp')}</span>
                         </div>
                       </div>
-                      {entry.field_name && (
+                      {entry.field_name && entry.field_name !== 'all' && (
                         <div className="space-y-1 text-xs">
                           <p className="text-gray-400">Field: <span className="text-white">{entry.field_name}</span></p>
                           {entry.old_value && (
@@ -226,11 +249,20 @@ export const ParameterDetailPopup: React.FC<ParameterDetailPopupProps> = ({
                           )}
                         </div>
                       )}
+                      {entry.field_name === 'all' && (
+                        <div className="text-xs text-gray-400">
+                          {entry.action === 'created' ? 'Parameter was created' : 'Parameter was deleted'}
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
-              </div>
-            )}
+              ) : (
+                <div className="text-gray-400 text-sm">
+                  No change history available for this parameter.
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </DialogContent>

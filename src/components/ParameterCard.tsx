@@ -243,6 +243,10 @@ export const ParameterCard = ({ parameter, viewMode = 'grid' }: ParameterCardPro
         parameter={parameter}
         isOpen={isDetailPopupOpen}
         onClose={() => setIsDetailPopupOpen(false)}
+        onEdit={(parameter) => {
+          setIsDetailPopupOpen(false);
+          setIsEditDialogOpen(true);
+        }}
       />
     </>
   );
