@@ -1,499 +1,239 @@
+
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { 
-  Calendar, 
-  AlertTriangle, 
-  CheckCircle, 
-  XCircle, 
-  Clock, 
-  Edit, 
-  Trash2, 
-  Plus, 
-  History, 
-  StickyNote,
-  User,
-  Clock as TimeIcon
-} from 'lucide-react';
-import { StatutoryParameter } from '@/hooks/useStatutoryParameters';
+import { Textarea } from '@/components/ui/textarea';
+import { Edit, Calendar, FileText, Building2, Clock, User, MessageSquare, X } from 'lucide-react';
+import { format } from 'date-fns';
 import { useParameterHistory } from '@/hooks/useParameterHistory';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { EditParameterForm } from '@/components/EditParameterForm';
-import { useStatutoryParameters } from '@/hooks/useStatutoryParameters';
-import { useUserProfile } from '@/hooks/useUserProfile';
-import { useEffect, useState as useReactState } from 'react';
+import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
-import { formatDateTime } from '@/lib/dateUtils';
+import { toast } from 'sonner';
+
+interface Parameter {
+  id: string;
+  name: string;
+  category: string;
+  issue_date: string;
+  expiry_date: string;
+  description?: string;
+  status: 'valid' | 'warning' | 'expired';
+  dairy_unit_id?: string;
+}
 
 interface ParameterDetailPopupProps {
-  parameter: StatutoryParameter;
+  parameter: Parameter;
   isOpen: boolean;
   onClose: () => void;
+  onEdit: (parameter: Parameter) => void;
 }
 
-function toDisplayDate(isoDate: string) {
-  if (!isoDate) return '';
-  const [year, month, day] = isoDate.split('-');
-  return `${day}/${month}/${year}`;
-}
+export const ParameterDetailPopup: React.FC<ParameterDetailPopupProps> = ({
+  parameter,
+  isOpen,
+  onClose,
+  onEdit,
+}) => {
+  const { user } = useAuth();
+  const { history, notes, addNote } = useParameterHistory(parameter.id);
+  const [newNote, setNewNote] = useState('');
+  const [isAddingNote, setIsAddingNote] = useState(false);
 
-function getStatusAndBadge(daysUntilExpiry: number): {
-  label: string;
-  color: string;
-  icon: JSX.Element;
-  animate: string;
-} {
-  if (daysUntilExpiry < 0) {
-    return {
-      label: 'Expired',
-      color: 'text-red-600 bg-red-50 border-red-200',
-      icon: <XCircle className="w-5 h-5 animate-bounce" />,
-      animate: 'animate-bounce',
-    };
-  } else if (daysUntilExpiry === 0) {
-    return {
-      label: 'Due Today',
-      color: 'text-blue-600 bg-blue-50 border-blue-200',
-      icon: <Clock className="w-5 h-5 animate-pulse" />,
-      animate: 'animate-pulse',
-    };
-  } else if (daysUntilExpiry <= 10) {
-    return {
-      label: 'Warning',
-      color: 'text-red-600 bg-red-50 border-red-200',
-      icon: <AlertTriangle className="w-5 h-5 animate-pulse" />,
-      animate: 'animate-pulse',
-    };
-  } else if (daysUntilExpiry <= 30) {
-    return {
-      label: 'Warning',
-      color: 'text-amber-600 bg-amber-50 border-amber-200',
-      icon: <AlertTriangle className="w-5 h-5 animate-pulse" />,
-      animate: 'animate-pulse',
-    };
-  } else {
-    return {
-      label: 'Valid',
-      color: 'text-green-600 bg-green-50 border-green-200',
-      icon: <CheckCircle className="w-5 h-5 animate-pulse" />,
-      animate: 'animate-pulse',
-    };
-  }
-}
-
-function getDaysRemainingText(daysUntilExpiry: number): { text: string; color: string } {
-  if (daysUntilExpiry < 0) {
-    return { text: `Expired ${Math.abs(daysUntilExpiry)} days ago`, color: 'text-red-600' };
-  } else if (daysUntilExpiry === 0) {
-    return { text: 'Due today', color: 'text-blue-600' };
-  } else if (daysUntilExpiry <= 10) {
-    return { text: `${daysUntilExpiry} days remaining`, color: 'text-red-600' };
-  } else if (daysUntilExpiry <= 30) {
-    return { text: `${daysUntilExpiry} days remaining`, color: 'text-amber-600' };
-  } else {
-    return { text: `${daysUntilExpiry} days remaining`, color: 'text-green-600' };
-  }
-}
-
-export const ParameterDetailPopup = ({ parameter, isOpen, onClose }: ParameterDetailPopupProps) => {
-  const { deleteParameter, isDeletingParameter } = useStatutoryParameters();
-  const { 
-    history, 
-    notes, 
-    isLoadingHistory, 
-    isLoadingNotes, 
-    addNote, 
-    updateNote, 
-    deleteNote,
-    isAddingNote,
-    isUpdatingNote,
-    isDeletingNote,
-  } = useParameterHistory(parameter.id);
-  const { profile } = useUserProfile();
-  const [creatorName, setCreatorName] = useReactState<string>('Unknown User');
-  const [isFetchingCreator, setIsFetchingCreator] = useReactState(false);
-  
-  const [isEditDialogOpen, setIsEditDialogOpen] = useReactState(false);
-  const [newNote, setNewNote] = useReactState('');
-  const [editingNoteId, setEditingNoteId] = useReactState<string | null>(null);
-  const [editingNoteText, setEditingNoteText] = useReactState('');
-
-  useEffect(() => {
-    async function fetchCreator() {
-      setIsFetchingCreator(true);
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('full_name')
-        .eq('id', parameter.user_id)
-        .single();
-      if (!error && data?.full_name) setCreatorName(data.full_name);
-      setIsFetchingCreator(false);
-    }
-    if (parameter.user_id) fetchCreator();
-  }, [parameter.user_id]);
-
-  let displayHistory = history;
-  if (!isLoadingHistory && (history.length === 0 || !history.some(h => h.action === 'created'))) {
-    displayHistory = [
-      ...history,
-      {
-        id: 'synth-created',
-        parameter_id: parameter.id,
-        user_id: parameter.user_id,
-        action: 'created' as const,
-        field_name: 'all',
-        old_value: null,
-        new_value: null,
-        created_at: parameter.created_at,
-        user_name: creatorName,
-      },
-    ].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-  }
-
-  const badge = getStatusAndBadge(parameter.daysUntilExpiry);
-  const daysText = getDaysRemainingText(parameter.daysUntilExpiry);
-
-  const handleDelete = () => {
-    if (window.confirm('Are you sure you want to delete this parameter?')) {
-      deleteParameter(parameter.id);
-      onClose();
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'valid':
+        return 'bg-green-600 text-white';
+      case 'warning':
+        return 'bg-amber-600 text-white';
+      case 'expired':
+        return 'bg-red-600 text-white';
+      default:
+        return 'bg-gray-600 text-white';
     }
   };
 
-  const handleAddNote = () => {
-    if (newNote.trim()) {
-      addNote(newNote.trim());
+  const handleAddNote = async () => {
+    if (!newNote.trim() || !user) return;
+    
+    setIsAddingNote(true);
+    try {
+      await addNote(newNote.trim());
       setNewNote('');
+      toast.success('Note added successfully');
+    } catch (error) {
+      console.error('Error adding note:', error);
+      toast.error('Failed to add note');
+    } finally {
+      setIsAddingNote(false);
     }
-  };
-
-  const handleUpdateNote = (id: string) => {
-    if (editingNoteText.trim()) {
-      updateNote({ id, noteText: editingNoteText.trim() });
-      setEditingNoteId(null);
-      setEditingNoteText('');
-    }
-  };
-
-  const handleDeleteNote = (id: string) => {
-    if (window.confirm('Are you sure you want to delete this note?')) {
-      deleteNote(id);
-    }
-  };
-
-  const startEditingNote = (note: any) => {
-    setEditingNoteId(note.id);
-    setEditingNoteText(note.note_text);
   };
 
   return (
-    <>
-      <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="max-w-6xl max-h-[90vh] bg-gray-900 border-gray-700 flex flex-col">
-          <DialogHeader className="flex-shrink-0">
-            <DialogTitle className="text-white text-xl font-bold">
-              Parameter Details
-            </DialogTitle>
-          </DialogHeader>
-
-          <div className="flex-1 overflow-hidden">
-            {/* Parameter Header - Fixed */}
-            <div className="bg-gray-800 p-6 rounded-lg border border-gray-700 mb-4 flex-shrink-0">
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex-1">
-                  <h2 className="text-2xl font-bold text-white mb-2">{parameter.name}</h2>
-                  <p className="text-gray-400 mb-2">{parameter.category}</p>
-                  {parameter.description && (
-                    <p className="text-gray-300">{parameter.description}</p>
-                  )}
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-semibold border ${badge.color} ${badge.animate} shadow-sm`}>
-                    {badge.icon}
-                    {badge.label}
-                  </span>
-                </div>
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="max-w-2xl max-h-[90vh] bg-gray-800 border-gray-700 text-white mx-4 overflow-hidden flex flex-col">
+        <DialogHeader className="flex-shrink-0">
+          <div className="flex items-center justify-between">
+            <DialogTitle className="text-xl font-bold text-white pr-8">{parameter.name}</DialogTitle>
+            <button
+              onClick={onClose}
+              className="absolute right-4 top-4 p-1 hover:bg-gray-700 rounded-full transition-colors lg:hidden"
+            >
+              <X className="w-5 h-5 text-gray-400" />
+            </button>
+          </div>
+        </DialogHeader>
+        
+        <div className="flex-1 overflow-hidden">
+          <div className="h-full overflow-y-auto pr-2 space-y-6">
+            {/* Parameter Details */}
+            <div className="bg-gray-700 rounded-lg p-4 space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <Badge className={`${getStatusColor(parameter.status)} text-sm px-3 py-1 w-fit`}>
+                  {parameter.status.charAt(0).toUpperCase() + parameter.status.slice(1)}
+                </Badge>
+                <Button 
+                  onClick={() => onEdit(parameter)}
+                  variant="outline"
+                  size="sm"
+                  className="border-gray-600 text-gray-300 hover:bg-gray-600 w-full sm:w-auto"
+                >
+                  <Edit className="w-4 h-4 mr-2" />
+                  Edit Parameter
+                </Button>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                <div className="flex items-center text-gray-300">
-                  <Calendar className="w-5 h-5 mr-3" />
-                  <div>
-                    <p className="text-sm text-gray-400">Issued</p>
-                    <p className="font-medium">{toDisplayDate(parameter.issue_date)}</p>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <FileText className="w-4 h-4 text-blue-400" />
+                    <span className="text-sm text-gray-400">Category</span>
                   </div>
+                  <p className="text-white font-medium ml-6">{parameter.category}</p>
                 </div>
-                <div className="flex items-center text-gray-300">
-                  <Calendar className="w-5 h-5 mr-3" />
-                  <div>
-                    <p className="text-sm text-gray-400">Expires</p>
-                    <p className="font-medium">{toDisplayDate(parameter.expiry_date)}</p>
+
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Calendar className="w-4 h-4 text-green-400" />
+                    <span className="text-sm text-gray-400">Issue Date</span>
                   </div>
+                  <p className="text-white font-medium ml-6">
+                    {format(new Date(parameter.issue_date), 'PPP')}
+                  </p>
                 </div>
+
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Calendar className="w-4 h-4 text-red-400" />
+                    <span className="text-sm text-gray-400">Expiry Date</span>
+                  </div>
+                  <p className="text-white font-medium ml-6">
+                    {format(new Date(parameter.expiry_date), 'PPP')}
+                  </p>
+                </div>
+
+                {parameter.dairy_unit_id && (
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <Building2 className="w-4 h-4 text-blue-400" />
+                      <span className="text-sm text-gray-400">Dairy Unit</span>
+                    </div>
+                    <p className="text-white font-medium ml-6">{parameter.dairy_unit_id}</p>
+                  </div>
+                )}
               </div>
 
-              <div className="flex items-center justify-between">
-                <span className={`text-lg font-semibold ${daysText.color}`}>
-                  {daysText.text}
-                </span>
-                <div className="flex gap-2">
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="text-blue-400 border-blue-400 hover:bg-blue-400 hover:text-white"
-                          onClick={() => setIsEditDialogOpen(true)}
-                        >
-                          <Edit className="w-4 h-4 mr-2" />
-                          Edit
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>Edit Parameter</TooltipContent>
-                    </Tooltip>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="text-red-400 border-red-400 hover:bg-red-400 hover:text-white"
-                          onClick={handleDelete}
-                          disabled={isDeletingParameter}
-                        >
-                          <Trash2 className="w-4 h-4 mr-2" />
-                          Delete
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>Delete Parameter</TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
+              {parameter.description && (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <FileText className="w-4 h-4 text-gray-400" />
+                    <span className="text-sm text-gray-400">Description</span>
+                  </div>
+                  <p className="text-gray-300 ml-6 text-sm leading-relaxed">{parameter.description}</p>
                 </div>
-              </div>
+              )}
             </div>
 
-            {/* Tabs for History and Notes - Scrollable */}
-            <div className="flex-1 overflow-hidden">
-              <Tabs defaultValue="history" className="w-full h-full flex flex-col">
-                <TabsList className="grid w-full grid-cols-2 bg-gray-800 border-gray-700 flex-shrink-0">
-                  <TabsTrigger value="history" className="data-[state=active]:bg-gray-700">
-                    <History className="w-4 h-4 mr-2" />
-                    Update History
-                  </TabsTrigger>
-                  <TabsTrigger value="notes" className="data-[state=active]:bg-gray-700">
-                    <StickyNote className="w-4 h-4 mr-2" />
-                    Additional Notes
-                  </TabsTrigger>
-                </TabsList>
+            {/* Add Note Section */}
+            <div className="bg-gray-700 rounded-lg p-4">
+              <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                <MessageSquare className="w-5 h-5 text-blue-400" />
+                Add Note
+              </h3>
+              <Textarea
+                value={newNote}
+                onChange={(e) => setNewNote(e.target.value)}
+                placeholder="Add a note about this parameter..."
+                className="bg-gray-800 border-gray-600 text-white placeholder-gray-400 mb-3 min-h-[80px] resize-none"
+              />
+              <Button 
+                onClick={handleAddNote}
+                disabled={!newNote.trim() || isAddingNote}
+                className="bg-blue-600 hover:bg-blue-700 text-white w-full sm:w-auto"
+              >
+                {isAddingNote ? 'Adding...' : 'Add Note'}
+              </Button>
+            </div>
 
-                <TabsContent value="history" className="flex-1 overflow-hidden mt-4">
-                  <Card className="bg-gray-800 border-gray-700 h-full flex flex-col">
-                    <CardHeader className="flex-shrink-0">
-                      <CardTitle className="text-white">Update History</CardTitle>
-                    </CardHeader>
-                    <CardContent className="flex-1 overflow-hidden p-0">
-                      <ScrollArea className="h-[350px] px-6">
-                        {isLoadingHistory ? (
-                          <div className="text-center py-8">
-                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-400 mx-auto"></div>
-                            <p className="text-gray-400 mt-2">Loading history...</p>
-                          </div>
-                        ) : displayHistory.length === 0 ? (
-                          <div className="text-center py-8">
-                            <History className="w-12 h-12 text-gray-600 mx-auto mb-4" />
-                            <p className="text-gray-400">No update history available</p>
-                          </div>
-                        ) : (
-                          <div className="relative pl-8 py-4">
-                            {/* Vertical line */}
-                            <div className="absolute left-2 top-0 bottom-0 w-1 bg-gray-600 rounded-full" style={{ zIndex: 0 }} />
-                            <div className="space-y-6">
-                              {displayHistory.map((item, idx) => (
-                                <div key={item.id} className="relative flex items-start group">
-                                  {/* Timeline dot */}
-                                  <div className="absolute left-[-18px] top-2 w-4 h-4 rounded-full border-2 border-blue-400 bg-gray-900 z-10 flex items-center justify-center">
-                                    <span className="block w-2 h-2 rounded-full bg-blue-400"></span>
-                                  </div>
-                                  <div className="bg-gray-700 p-4 rounded-lg border border-gray-600 flex-1 ml-2">
-                                    <div className="flex items-center gap-2 mb-1">
-                                      <span className="font-semibold text-white">
-                                        {item.action === 'created' ? 'Parameter created' : 
-                                         item.action === 'updated' ? `${item.field_name || 'Parameter'} updated` : 
-                                         'Parameter deleted'}
-                                      </span>
-                                      <Badge variant="outline" className="text-xs ml-2">
-                                        {item.action}
-                                      </Badge>
-                                    </div>
-                                    {item.action === 'updated' && item.field_name && item.old_value && item.new_value && (
-                                      <div className="text-sm text-gray-300 mb-2">
-                                        <span className="text-red-400">{item.old_value}</span> → <span className="text-green-400">{item.new_value}</span>
-                                      </div>
-                                    )}
-                                    <div className="flex items-center gap-4 text-sm text-gray-400">
-                                      <div className="flex items-center gap-1">
-                                        <User className="w-4 h-4" />
-                                        {item.user_name || 'Unknown User'}
-                                      </div>
-                                      <div className="flex items-center gap-1">
-                                        <TimeIcon className="w-4 h-4" />
-                                        {formatDateTime(item.created_at)}
-                                      </div>
-                                    </div>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </ScrollArea>
-                    </CardContent>
-                  </Card>
-                </TabsContent>
+            {/* Notes Section */}
+            {notes.length > 0 && (
+              <div className="bg-gray-700 rounded-lg p-4">
+                <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                  <MessageSquare className="w-5 h-5 text-amber-400" />
+                  Notes ({notes.length})
+                </h3>
+                <div className="space-y-3 max-h-40 overflow-y-auto pr-2">
+                  {notes.map((note) => (
+                    <div key={note.id} className="bg-gray-800 rounded-lg p-3 border border-gray-600">
+                      <p className="text-gray-300 text-sm mb-2">{note.note_text}</p>
+                      <div className="flex items-center gap-2 text-xs text-gray-400">
+                        <Clock className="w-3 h-3" />
+                        <span>{format(new Date(note.created_at), 'PPp')}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
-                <TabsContent value="notes" className="flex-1 overflow-hidden mt-4">
-                  <Card className="bg-gray-800 border-gray-700 h-full flex flex-col">
-                    <CardHeader className="flex-shrink-0">
-                      <CardTitle className="text-white">Additional Notes</CardTitle>
-                    </CardHeader>
-                    <CardContent className="flex-1 overflow-hidden p-0">
-                      <div className="h-[400px] flex flex-col">
-                        {/* Add Note Form - Fixed at top */}
-                        <div className="flex-shrink-0 p-4 bg-gray-700 border-b border-gray-600">
-                          <h4 className="text-white font-medium mb-3">Add New Note</h4>
-                          <div className="flex gap-2">
-                            <Textarea
-                              placeholder="Enter your note here..."
-                              value={newNote}
-                              onChange={(e) => setNewNote(e.target.value)}
-                              className="flex-1 bg-gray-600 border-gray-500 text-white placeholder-gray-400 resize-none min-h-[60px]"
-                              rows={2}
-                            />
-                            <Button
-                              onClick={handleAddNote}
-                              disabled={!newNote.trim() || isAddingNote}
-                              className="bg-blue-600 hover:bg-blue-700 self-end px-4"
-                            >
-                              <Plus className="w-4 h-4" />
-                            </Button>
-                          </div>
-                        </div>
-
-                        {/* Notes List - Scrollable */}
-                        <div className="flex-1 overflow-hidden">
-                          <ScrollArea className="h-full">
-                            <div className="p-4">
-                              {isLoadingNotes ? (
-                                <div className="text-center py-8">
-                                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-400 mx-auto"></div>
-                                  <p className="text-gray-400 mt-2">Loading notes...</p>
-                                </div>
-                              ) : notes.length === 0 ? (
-                                <div className="text-center py-8">
-                                  <StickyNote className="w-12 h-12 text-gray-600 mx-auto mb-4" />
-                                  <p className="text-gray-400">No notes available</p>
-                                </div>
-                              ) : (
-                                <div className="space-y-3">
-                                  {notes.map((note) => (
-                                    <div key={note.id} className="bg-gray-700 p-4 rounded-lg border border-gray-600">
-                                      {editingNoteId === note.id ? (
-                                        <div className="space-y-3">
-                                          <Textarea
-                                            value={editingNoteText}
-                                            onChange={(e) => setEditingNoteText(e.target.value)}
-                                            className="bg-gray-600 border-gray-500 text-white resize-none min-h-[80px]"
-                                            rows={3}
-                                          />
-                                          <div className="flex gap-2">
-                                            <Button
-                                              size="sm"
-                                              onClick={() => handleUpdateNote(note.id)}
-                                              disabled={!editingNoteText.trim() || isUpdatingNote}
-                                              className="bg-green-600 hover:bg-green-700"
-                                            >
-                                              Save
-                                            </Button>
-                                            <Button
-                                              size="sm"
-                                              variant="outline"
-                                              onClick={() => {
-                                                setEditingNoteId(null);
-                                                setEditingNoteText('');
-                                              }}
-                                              className="border-gray-500 text-gray-300 hover:bg-gray-600"
-                                            >
-                                              Cancel
-                                            </Button>
-                                          </div>
-                                        </div>
-                                      ) : (
-                                        <div>
-                                          <p className="text-white mb-3 whitespace-pre-wrap leading-relaxed">{note.note_text}</p>
-                                          <div className="flex items-center justify-between">
-                                            <div className="flex items-center gap-4 text-sm text-gray-400">
-                                              <div className="flex items-center gap-1">
-                                                <User className="w-4 h-4" />
-                                                {note.user_name || 'Unknown User'}
-                                              </div>
-                                              <div className="flex items-center gap-1">
-                                                <TimeIcon className="w-4 h-4" />
-                                                {formatDateTime(note.created_at)}
-                                              </div>
-                                            </div>
-                                            <div className="flex gap-2">
-                                              <Button
-                                                size="sm"
-                                                variant="outline"
-                                                onClick={() => startEditingNote(note)}
-                                                className="border-gray-500 text-gray-300 hover:bg-gray-600 px-2"
-                                              >
-                                                <Edit className="w-4 h-4" />
-                                              </Button>
-                                              <Button
-                                                size="sm"
-                                                variant="outline"
-                                                onClick={() => handleDeleteNote(note.id)}
-                                                disabled={isDeletingNote}
-                                                className="border-red-500 text-red-400 hover:bg-red-500 hover:text-white px-2"
-                                              >
-                                                <Trash2 className="w-4 h-4" />
-                                              </Button>
-                                            </div>
-                                          </div>
-                                        </div>
-                                      )}
-                                    </div>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                          </ScrollArea>
+            {/* History Section */}
+            {history.length > 0 && (
+              <div className="bg-gray-700 rounded-lg p-4">
+                <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                  <Clock className="w-5 h-5 text-green-400" />
+                  Change History ({history.length})
+                </h3>
+                <div className="space-y-3 max-h-60 overflow-y-auto pr-2">
+                  {history.map((entry) => (
+                    <div key={entry.id} className="bg-gray-800 rounded-lg p-3 border border-gray-600">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
+                        <Badge variant="outline" className="text-xs border-gray-500 text-gray-300 w-fit">
+                          {entry.action}
+                        </Badge>
+                        <div className="flex items-center gap-2 text-xs text-gray-400">
+                          <Clock className="w-3 h-3" />
+                          <span>{format(new Date(entry.created_at), 'PPp')}</span>
                         </div>
                       </div>
-                    </CardContent>
-                  </Card>
-                </TabsContent>
-              </Tabs>
-            </div>
+                      {entry.field_name && (
+                        <div className="space-y-1 text-xs">
+                          <p className="text-gray-400">Field: <span className="text-white">{entry.field_name}</span></p>
+                          {entry.old_value && (
+                            <p className="text-gray-400">From: <span className="text-red-300">{entry.old_value}</span></p>
+                          )}
+                          {entry.new_value && (
+                            <p className="text-gray-400">To: <span className="text-green-300">{entry.new_value}</span></p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Edit Parameter Dialog */}
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="sm:max-w-md bg-gray-800 border-gray-700">
-          <DialogHeader>
-            <DialogTitle className="text-white">Edit Parameter</DialogTitle>
-          </DialogHeader>
-          <EditParameterForm parameter={parameter} onClose={() => setIsEditDialogOpen(false)} />
-        </DialogContent>
-      </Dialog>
-    </>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 };

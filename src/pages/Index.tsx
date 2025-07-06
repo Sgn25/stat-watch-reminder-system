@@ -50,7 +50,7 @@ const Index = () => {
   };
 
   const getStatusCardStyle = (status: 'all' | 'valid' | 'warning' | 'expired') => {
-    const baseStyle = "bg-gray-800 p-6 rounded-lg shadow-lg border border-gray-700 hover:shadow-xl transition-all duration-200 cursor-pointer";
+    const baseStyle = "bg-gray-800 p-4 lg:p-6 rounded-lg shadow-lg border border-gray-700 hover:shadow-xl transition-all duration-200 cursor-pointer";
     const isSelected = selectedStatus === status;
     
     if (isSelected) {
@@ -81,26 +81,26 @@ const Index = () => {
   return (
     <ProtectedRoute>
       <DashboardLayout>
-        <div className="space-y-6">
+        <div className="space-y-4 lg:space-y-6">
           {/* Header */}
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex flex-col gap-4">
             <div>
               <div className="flex items-center gap-3 mb-2">
-                <Building2 className="w-8 h-8 text-blue-400 animate-pulse" />
-                <h1 className="text-3xl font-bold text-white">
+                <Building2 className="w-6 h-6 lg:w-8 lg:h-8 text-blue-400 animate-pulse" />
+                <h1 className="text-xl lg:text-3xl font-bold text-white">
                   StatMonitor - {profile?.dairy_unit?.name || 'Dairy Management'} Dashboard
                 </h1>
               </div>
-              <p className="text-gray-400 mt-1">Monitor and manage your dairy unit's statutory parameters</p>
+              <p className="text-gray-400 mt-1 text-sm lg:text-base">Monitor and manage your dairy unit's statutory parameters</p>
             </div>
             <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
               <DialogTrigger asChild>
-                <Button className="bg-blue-600 hover:bg-blue-700 text-white shadow-lg transition-all duration-200 hover:shadow-blue-500/25">
+                <Button className="bg-blue-600 hover:bg-blue-700 text-white shadow-lg transition-all duration-200 hover:shadow-blue-500/25 w-full sm:w-auto">
                   <Plus className="w-4 h-4 mr-2" />
                   Add Parameter
                 </Button>
               </DialogTrigger>
-              <DialogContent className="sm:max-w-md bg-gray-800 border-gray-700">
+              <DialogContent className="sm:max-w-md bg-gray-800 border-gray-700 mx-4 max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle className="text-white">Add New Statutory Parameter</DialogTitle>
                 </DialogHeader>
@@ -111,18 +111,18 @@ const Index = () => {
 
           {/* Status Overview Cards and Compliance Score */}
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
-            {/* Status Cards - 4/5 of the width */}
-            <div className="lg:col-span-4 grid grid-cols-1 md:grid-cols-4 gap-4">
+            {/* Status Cards - responsive grid */}
+            <div className="lg:col-span-4 grid grid-cols-2 lg:grid-cols-4 gap-2 lg:gap-4">
               <div 
                 className={getStatusCardStyle('all')}
                 onClick={() => handleStatusFilter('all')}
               >
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-gray-400">Total Parameters</p>
-                    <p className="text-2xl font-bold text-white">{statusCounts.total}</p>
+                    <p className="text-xs lg:text-sm font-medium text-gray-400">Total Parameters</p>
+                    <p className="text-lg lg:text-2xl font-bold text-white">{statusCounts.total}</p>
                   </div>
-                  <LayoutDashboard className="w-8 h-8 text-blue-400" />
+                  <LayoutDashboard className="w-6 h-6 lg:w-8 lg:h-8 text-blue-400" />
                 </div>
               </div>
               <div 
@@ -131,10 +131,10 @@ const Index = () => {
               >
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-gray-400">Valid</p>
-                    <p className="text-2xl font-bold text-green-400">{statusCounts.valid}</p>
+                    <p className="text-xs lg:text-sm font-medium text-gray-400">Valid</p>
+                    <p className="text-lg lg:text-2xl font-bold text-green-400">{statusCounts.valid}</p>
                   </div>
-                  <FileText className="w-8 h-8 text-green-400" />
+                  <FileText className="w-6 h-6 lg:w-8 lg:h-8 text-green-400" />
                 </div>
               </div>
               <div 
@@ -143,10 +143,10 @@ const Index = () => {
               >
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-gray-400">Expiring Soon</p>
-                    <p className="text-2xl font-bold text-amber-400">{statusCounts.warning}</p>
+                    <p className="text-xs lg:text-sm font-medium text-gray-400">Expiring Soon</p>
+                    <p className="text-lg lg:text-2xl font-bold text-amber-400">{statusCounts.warning}</p>
                   </div>
-                  <Bell className="w-8 h-8 text-amber-400" />
+                  <Bell className="w-6 h-6 lg:w-8 lg:h-8 text-amber-400" />
                 </div>
               </div>
               <div 
@@ -155,19 +155,19 @@ const Index = () => {
               >
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-gray-400">Expired</p>
-                    <p className="text-2xl font-bold text-red-400">{statusCounts.expired}</p>
+                    <p className="text-xs lg:text-sm font-medium text-gray-400">Expired</p>
+                    <p className="text-lg lg:text-2xl font-bold text-red-400">{statusCounts.expired}</p>
                   </div>
-                  <Bell className="w-8 h-8 text-red-400" />
+                  <Bell className="w-6 h-6 lg:w-8 lg:h-8 text-red-400" />
                 </div>
               </div>
             </div>
 
-            {/* Compliance Score - 1/5 of the width */}
-            <div className="lg:col-span-1">
+            {/* Compliance Score - responsive */}
+            <div className="lg:col-span-1 col-span-full">
               <div className="bg-gray-800 p-4 rounded-lg shadow-lg border border-gray-700 h-full flex flex-col items-center justify-center">
                 <h3 className="text-sm font-semibold text-white mb-3 text-center">Compliance Score</h3>
-                <div className="relative w-24 h-24 flex items-center justify-center">
+                <div className="relative w-20 h-20 lg:w-24 lg:h-24 flex items-center justify-center">
                   <svg className="w-full h-full" viewBox="0 0 120 120">
                     <circle cx="60" cy="60" r="50" fill="#23272f" stroke="#374151" strokeWidth="3" />
                     <circle
@@ -182,7 +182,7 @@ const Index = () => {
                     />
                   </svg>
                   <div className="absolute inset-0 flex flex-col items-center justify-center">
-                    <span className="text-2xl font-bold text-blue-400">{complianceScore}%</span>
+                    <span className="text-xl lg:text-2xl font-bold text-blue-400">{complianceScore}%</span>
                   </div>
                 </div>
                 <p className="text-gray-400 text-xs mt-2 text-center">Parameters currently valid</p>
@@ -191,38 +191,40 @@ const Index = () => {
           </div>
 
           {/* Search and Filter Controls */}
-          <div className="flex flex-col md:flex-row gap-4 items-center">
+          <div className="flex flex-col gap-4">
             <div className="flex-1">
               <SearchBar searchTerm={searchTerm} onSearchChange={setSearchTerm} />
             </div>
-            <div className="flex items-center gap-2">
-              <button
-                className={`p-2 rounded ${viewMode === 'grid' ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-300'}`}
-                onClick={() => setViewMode('grid')}
-                aria-label="Grid view"
-              >
-                <LayoutGrid className="w-5 h-5" />
-              </button>
-              <button
-                className={`p-2 rounded ${viewMode === 'list' ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-300'}`}
-                onClick={() => setViewMode('list')}
-                aria-label="List view"
-              >
-                <ListIcon className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="md:w-48">
-              <CategoryFilter 
-                categories={categories} 
-                selectedCategory={selectedCategory} 
-                onCategoryChange={setSelectedCategory} 
-              />
+            <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+              <div className="flex items-center gap-2">
+                <button
+                  className={`p-2 rounded ${viewMode === 'grid' ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-300'}`}
+                  onClick={() => setViewMode('grid')}
+                  aria-label="Grid view"
+                >
+                  <LayoutGrid className="w-5 h-5" />
+                </button>
+                <button
+                  className={`p-2 rounded ${viewMode === 'list' ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-300'}`}
+                  onClick={() => setViewMode('list')}
+                  aria-label="List view"
+                >
+                  <ListIcon className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="w-full sm:w-48">
+                <CategoryFilter 
+                  categories={categories} 
+                  selectedCategory={selectedCategory} 
+                  onCategoryChange={setSelectedCategory} 
+                />
+              </div>
             </div>
           </div>
 
           {/* Parameters Grid/List */}
           {viewMode === 'grid' ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-6">
               {filteredParameters.map(parameter => (
                 <ParameterCard key={parameter.id} parameter={parameter} />
               ))}

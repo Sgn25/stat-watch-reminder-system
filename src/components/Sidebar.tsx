@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { LayoutDashboard, FileText, Bell, User, Calendar, LogOut, Building2 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
@@ -7,7 +8,12 @@ import { Badge } from '@/components/ui/badge';
 import { UserInfoDisplay } from '@/components/UserInfoDisplay';
 import { NavLink } from 'react-router-dom';
 
-export const Sidebar = ({ mobile = false }: { mobile?: boolean }) => {
+interface SidebarProps {
+  mobile?: boolean;
+  onNavigate?: () => void;
+}
+
+export const Sidebar = ({ mobile = false, onNavigate }: SidebarProps) => {
   const { signOut } = useAuth();
   const { profile } = useUserProfile();
 
@@ -19,15 +25,30 @@ export const Sidebar = ({ mobile = false }: { mobile?: boolean }) => {
     { name: 'Profile', icon: User, path: '/profile' },
   ];
 
+  const handleNavClick = () => {
+    if (onNavigate) {
+      onNavigate();
+    }
+  };
+
+  const handleSignOut = () => {
+    signOut();
+    if (onNavigate) {
+      onNavigate();
+    }
+  };
+
   return (
-    <div className={mobile ? 'w-64 flex flex-col bg-gray-800 border-r border-gray-700 px-6 py-4' : 'hidden lg:fixed lg:inset-y-0 lg:z-50 lg:flex lg:w-64 lg:flex-col'}>
-      <div className="flex grow flex-col gap-y-5 overflow-y-auto bg-gray-800 border-r border-gray-700 px-6 py-4">
-        <div className="flex h-16 shrink-0 items-center">
-          <div className="flex items-center gap-2">
-            <Building2 className="w-8 h-8 text-blue-400 animate-pulse" />
-            <h1 className="text-xl font-bold text-white">StatMonitor</h1>
+    <div className={mobile ? 'flex flex-col h-full' : 'hidden lg:fixed lg:inset-y-0 lg:z-50 lg:flex lg:w-64 lg:flex-col'}>
+      <div className="flex grow flex-col gap-y-5 overflow-y-auto bg-gray-800 border-r border-gray-700 px-4 lg:px-6 py-4">
+        {!mobile && (
+          <div className="flex h-16 shrink-0 items-center">
+            <div className="flex items-center gap-2">
+              <Building2 className="w-8 h-8 text-blue-400 animate-pulse" />
+              <h1 className="text-xl font-bold text-white">StatMonitor</h1>
+            </div>
           </div>
-        </div>
+        )}
         
         <UserInfoDisplay />
         
@@ -54,7 +75,8 @@ export const Sidebar = ({ mobile = false }: { mobile?: boolean }) => {
                   <li key={item.name}>
                     <NavLink
                       to={item.path}
-                      className={({ isActive }) => `group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold transition-colors ${
+                      onClick={handleNavClick}
+                      className={({ isActive }) => `group flex gap-x-3 rounded-md p-3 text-sm leading-6 font-semibold transition-colors ${
                         isActive
                           ? 'bg-blue-600 text-white'
                           : 'text-gray-300 hover:text-white hover:bg-gray-700'
@@ -73,8 +95,8 @@ export const Sidebar = ({ mobile = false }: { mobile?: boolean }) => {
             <li className="mt-auto">
               <Button
                 variant="ghost"
-                onClick={signOut}
-                className="w-full justify-start text-gray-300 hover:text-red-400 hover:bg-gray-700"
+                onClick={handleSignOut}
+                className="w-full justify-start text-gray-300 hover:text-red-400 hover:bg-gray-700 p-3"
               >
                 <LogOut className="h-6 w-6 shrink-0 mr-3" />
                 Sign Out
