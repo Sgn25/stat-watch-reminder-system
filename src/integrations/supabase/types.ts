@@ -71,6 +71,47 @@ export type Database = {
           },
         ]
       }
+      parameter_history: {
+        Row: {
+          action: string
+          created_at: string
+          field_name: string | null
+          id: string
+          new_value: string | null
+          old_value: string | null
+          parameter_id: string
+          user_id: string
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          field_name?: string | null
+          id?: string
+          new_value?: string | null
+          old_value?: string | null
+          parameter_id: string
+          user_id: string
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          field_name?: string | null
+          id?: string
+          new_value?: string | null
+          old_value?: string | null
+          parameter_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "parameter_history_parameter_id_fkey"
+            columns: ["parameter_id"]
+            isOneToOne: false
+            referencedRelation: "statutory_parameters"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       parameter_notes: {
         Row: {
           created_at: string

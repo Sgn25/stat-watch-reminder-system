@@ -2,6 +2,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useEffect } from 'react';
 
 export interface ParameterHistory {
   id: string;
@@ -33,26 +34,50 @@ export const useParameterHistory = (parameterId: string) => {
   const { data: history = [], isLoading: isLoadingHistory, refetch: refetchHistory } = useQuery({
     queryKey: ['parameter-history', parameterId],
     queryFn: async () => {
+      console.log('Fetching parameter history for:', parameterId);
+      
       const { data: rawHistory, error: rawError } = await supabase
         .from('parameter_history')
         .select('*')
         .eq('parameter_id', parameterId)
         .order('created_at', { ascending: true });
-      if (rawError) throw rawError;
-      if (!rawHistory || rawHistory.length === 0) return [];
+      
+      if (rawError) {
+        console.error('Error fetching parameter history:', rawError);
+        throw rawError;
+      }
+      
+      if (!rawHistory || rawHistory.length === 0) {
+        console.log('No parameter history found for:', parameterId);
+        return [];
+      }
+      
       // Get unique user IDs
       const userIds = [...new Set(rawHistory.map(h => h.user_id))];
+      
       // Fetch user profiles
       const { data: profiles, error: profileError } = await supabase
         .from('profiles')
         .select('id, full_name')
         .in('id', userIds);
+      
+      if (profileError) {
+        console.warn('Error fetching user profiles for history:', profileError);
+      }
+      
       const userNameMap = (profiles || []).reduce((acc, profile) => {
         acc[profile.id] = profile.full_name || 'Unknown User';
         return acc;
       }, {} as Record<string, string>);
+      
       // Map history with user names
-      return rawHistory.map((h: any) => ({ ...h, user_name: userNameMap[h.user_id] || 'Unknown User' }));
+      const historyWithUserNames = rawHistory.map((h: any) => ({ 
+        ...h, 
+        user_name: userNameMap[h.user_id] || 'Unknown User' 
+      }));
+      
+      console.log('Parameter history fetched successfully:', historyWithUserNames);
+      return historyWithUserNames;
     },
     enabled: !!parameterId,
   });
@@ -61,8 +86,7 @@ export const useParameterHistory = (parameterId: string) => {
   const { data: notes = [], isLoading: isLoadingNotes, refetch: refetchNotes } = useQuery({
     queryKey: ['parameter-notes', parameterId],
     queryFn: async () => {
-      console.log('=== FETCHING NOTES DEBUG ===');
-      console.log('Parameter ID:', parameterId);
+      console.log('Fetching parameter notes for:', parameterId);
       
       // First, get the notes
       const { data: rawNotes, error: rawError } = await supabase
@@ -71,11 +95,8 @@ export const useParameterHistory = (parameterId: string) => {
         .eq('parameter_id', parameterId)
         .order('created_at', { ascending: false });
       
-      console.log('Raw notes from DB:', rawNotes);
-      console.log('Raw notes error:', rawError);
-      
       if (rawError) {
-        console.error('Error fetching raw notes:', rawError);
+        console.error('Error fetching parameter notes:', rawError);
         throw rawError;
       }
       
@@ -93,10 +114,8 @@ export const useParameterHistory = (parameterId: string) => {
         .select('id, full_name')
         .in('id', userIds);
       
-      console.log('Fetched profiles:', profiles);
-      
       if (profileError) {
-        console.warn('Error fetching profiles:', profileError);
+        console.warn('Error fetching user profiles for notes:', profileError);
       }
       
       // Create a map of user ID to full name
@@ -104,8 +123,6 @@ export const useParameterHistory = (parameterId: string) => {
         acc[profile.id] = profile.full_name || 'Unknown User';
         return acc;
       }, {} as Record<string, string>);
-      
-      console.log('User name map:', userNameMap);
       
       // Map notes with user names
       const notesWithUserNames = rawNotes.map((note): ParameterNote => ({
@@ -118,11 +135,53 @@ export const useParameterHistory = (parameterId: string) => {
         user_name: userNameMap[note.user_id] || 'Unknown User'
       }));
       
-      console.log('Final notes with user names:', notesWithUserNames);
+      console.log('Parameter notes fetched successfully:', notesWithUserNames);
       return notesWithUserNames;
     },
     enabled: !!parameterId,
   });
+
+  // Real-time subscription for parameter history and notes
+  useEffect(() => {
+    if (!parameterId) return;
+
+    console.log('Setting up real-time subscriptions for parameter:', parameterId);
+
+    const channel = supabase
+      .channel(`parameter-realtime-${parameterId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'parameter_history',
+          filter: `parameter_id=eq.${parameterId}`,
+        },
+        (payload) => {
+          console.log('Parameter history real-time update:', payload);
+          queryClient.invalidateQueries({ queryKey: ['parameter-history', parameterId] });
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'parameter_notes',
+          filter: `parameter_id=eq.${parameterId}`,
+        },
+        (payload) => {
+          console.log('Parameter notes real-time update:', payload);
+          queryClient.invalidateQueries({ queryKey: ['parameter-notes', parameterId] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      console.log('Cleaning up real-time subscriptions for parameter:', parameterId);
+      supabase.removeChannel(channel);
+    };
+  }, [parameterId, queryClient]);
 
   // Add note mutation
   const addNoteMutation = useMutation({
@@ -130,8 +189,7 @@ export const useParameterHistory = (parameterId: string) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
 
-      console.log('=== ADDING NOTE DEBUG ===');
-      console.log('Adding note:', noteText, 'for parameter:', parameterId, 'by user:', user.id);
+      console.log('Adding note for parameter:', parameterId, 'by user:', user.id);
 
       const { data, error } = await supabase
         .from('parameter_notes')
@@ -152,13 +210,8 @@ export const useParameterHistory = (parameterId: string) => {
       return data;
     },
     onSuccess: () => {
-      console.log('Note add success - invalidating queries and refetching');
-      // Invalidate and refetch the notes
+      console.log('Note add success - invalidating queries');
       queryClient.invalidateQueries({ queryKey: ['parameter-notes', parameterId] });
-      // Force immediate refetch
-      setTimeout(() => {
-        refetchNotes();
-      }, 100);
       toast({
         title: "Success",
         description: "Note added successfully",
@@ -189,9 +242,6 @@ export const useParameterHistory = (parameterId: string) => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['parameter-notes', parameterId] });
-      setTimeout(() => {
-        refetchNotes();
-      }, 100);
       toast({
         title: "Success",
         description: "Note updated successfully",
@@ -218,9 +268,6 @@ export const useParameterHistory = (parameterId: string) => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['parameter-notes', parameterId] });
-      setTimeout(() => {
-        refetchNotes();
-      }, 100);
       toast({
         title: "Success",
         description: "Note deleted successfully",
@@ -235,7 +282,7 @@ export const useParameterHistory = (parameterId: string) => {
     },
   });
 
-  // Add a helper to refetch history after parameter changes
+  // Add a helper to refetch all data
   const refetchAll = () => {
     refetchHistory();
     refetchNotes();
@@ -249,9 +296,9 @@ export const useParameterHistory = (parameterId: string) => {
     addNote: addNoteMutation.mutate,
     updateNote: updateNoteMutation.mutate,
     deleteNote: deleteNoteMutation.mutate,
-    isAddingNote: addNoteMutation.isLoading,
-    isUpdatingNote: updateNoteMutation.isLoading,
-    isDeletingNote: deleteNoteMutation.isLoading,
+    isAddingNote: addNoteMutation.isPending,
+    isUpdatingNote: updateNoteMutation.isPending,
+    isDeletingNote: deleteNoteMutation.isPending,
     refetchAll,
   };
 };

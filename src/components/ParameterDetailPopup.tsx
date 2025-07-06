@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -27,7 +26,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { EditParameterForm } from '@/components/EditParameterForm';
 import { useStatutoryParameters } from '@/hooks/useStatutoryParameters';
 import { useUserProfile } from '@/hooks/useUserProfile';
-import { useEffect } from 'react';
+import { useEffect, useState as useReactState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { formatDateTime } from '@/lib/dateUtils';
 
@@ -115,16 +114,15 @@ export const ParameterDetailPopup = ({ parameter, isOpen, onClose }: ParameterDe
     isAddingNote,
     isUpdatingNote,
     isDeletingNote,
-    refetchAll,
   } = useParameterHistory(parameter.id);
   const { profile } = useUserProfile();
-  const [creatorName, setCreatorName] = useState<string>('Unknown User');
-  const [isFetchingCreator, setIsFetchingCreator] = useState(false);
+  const [creatorName, setCreatorName] = useReactState<string>('Unknown User');
+  const [isFetchingCreator, setIsFetchingCreator] = useReactState(false);
   
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [newNote, setNewNote] = useState('');
-  const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
-  const [editingNoteText, setEditingNoteText] = useState('');
+  const [isEditDialogOpen, setIsEditDialogOpen] = useReactState(false);
+  const [newNote, setNewNote] = useReactState('');
+  const [editingNoteId, setEditingNoteId] = useReactState<string | null>(null);
+  const [editingNoteText, setEditingNoteText] = useReactState('');
 
   // Fetch creator name if needed
   useEffect(() => {
@@ -143,7 +141,7 @@ export const ParameterDetailPopup = ({ parameter, isOpen, onClose }: ParameterDe
 
   // Synthesize creation info if not present in history
   let displayHistory = history;
-  if (!isLoadingHistory && (history.length === 0 || history[history.length - 1].action !== 'created')) {
+  if (!isLoadingHistory && (history.length === 0 || !history.some(h => h.action === 'created'))) {
     displayHistory = [
       ...history,
       {
@@ -157,31 +155,8 @@ export const ParameterDetailPopup = ({ parameter, isOpen, onClose }: ParameterDe
         created_at: parameter.created_at,
         user_name: creatorName,
       },
-    ];
+    ].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
   }
-
-  // Realtime subscription for parameter_history
-  useEffect(() => {
-    if (!parameter.id) return;
-    const channel = supabase
-      .channel('parameter-history-realtime-' + parameter.id)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'parameter_history',
-          filter: `parameter_id=eq.${parameter.id}`,
-        },
-        () => {
-          refetchAll && refetchAll();
-        }
-      )
-      .subscribe();
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [parameter.id]);
 
   const badge = getStatusAndBadge(parameter.daysUntilExpiry);
   const daysText = getDaysRemainingText(parameter.daysUntilExpiry);
@@ -351,12 +326,19 @@ export const ParameterDetailPopup = ({ parameter, isOpen, onClose }: ParameterDe
                                   <div className="bg-gray-700 p-4 rounded-lg border border-gray-600 flex-1 ml-2">
                                     <div className="flex items-center gap-2 mb-1">
                                       <span className="font-semibold text-white">
-                                        {item.action === 'created' ? 'Parameter created' : item.action === 'updated' ? 'Parameter updated' : 'Parameter deleted'}
+                                        {item.action === 'created' ? 'Parameter created' : 
+                                         item.action === 'updated' ? `${item.field_name || 'Parameter'} updated` : 
+                                         'Parameter deleted'}
                                       </span>
                                       <Badge variant="outline" className="text-xs ml-2">
                                         {item.action}
                                       </Badge>
                                     </div>
+                                    {item.action === 'updated' && item.field_name && item.old_value && item.new_value && (
+                                      <div className="text-sm text-gray-300 mb-2">
+                                        <span className="text-red-400">{item.old_value}</span> → <span className="text-green-400">{item.new_value}</span>
+                                      </div>
+                                    )}
                                     <div className="flex items-center gap-4 text-sm text-gray-400">
                                       <div className="flex items-center gap-1">
                                         <User className="w-4 h-4" />
