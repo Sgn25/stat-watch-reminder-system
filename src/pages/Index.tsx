@@ -109,81 +109,85 @@ const Index = () => {
             </Dialog>
           </div>
 
-          {/* Status Overview Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div 
-              className={getStatusCardStyle('all')}
-              onClick={() => handleStatusFilter('all')}
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-400">Total Parameters</p>
-                  <p className="text-2xl font-bold text-white">{statusCounts.total}</p>
+          {/* Status Overview Cards and Compliance Score */}
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+            {/* Status Cards - 4/5 of the width */}
+            <div className="lg:col-span-4 grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div 
+                className={getStatusCardStyle('all')}
+                onClick={() => handleStatusFilter('all')}
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-400">Total Parameters</p>
+                    <p className="text-2xl font-bold text-white">{statusCounts.total}</p>
+                  </div>
+                  <LayoutDashboard className="w-8 h-8 text-blue-400" />
                 </div>
-                <LayoutDashboard className="w-8 h-8 text-blue-400" />
+              </div>
+              <div 
+                className={getStatusCardStyle('valid')}
+                onClick={() => handleStatusFilter('valid')}
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-400">Valid</p>
+                    <p className="text-2xl font-bold text-green-400">{statusCounts.valid}</p>
+                  </div>
+                  <FileText className="w-8 h-8 text-green-400" />
+                </div>
+              </div>
+              <div 
+                className={getStatusCardStyle('warning')}
+                onClick={() => handleStatusFilter('warning')}
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-400">Expiring Soon</p>
+                    <p className="text-2xl font-bold text-amber-400">{statusCounts.warning}</p>
+                  </div>
+                  <Bell className="w-8 h-8 text-amber-400" />
+                </div>
+              </div>
+              <div 
+                className={getStatusCardStyle('expired')}
+                onClick={() => handleStatusFilter('expired')}
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-400">Expired</p>
+                    <p className="text-2xl font-bold text-red-400">{statusCounts.expired}</p>
+                  </div>
+                  <Bell className="w-8 h-8 text-red-400" />
+                </div>
               </div>
             </div>
-            <div 
-              className={getStatusCardStyle('valid')}
-              onClick={() => handleStatusFilter('valid')}
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-400">Valid</p>
-                  <p className="text-2xl font-bold text-green-400">{statusCounts.valid}</p>
-                </div>
-                <FileText className="w-8 h-8 text-green-400" />
-              </div>
-            </div>
-            <div 
-              className={getStatusCardStyle('warning')}
-              onClick={() => handleStatusFilter('warning')}
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-400">Expiring Soon</p>
-                  <p className="text-2xl font-bold text-amber-400">{statusCounts.warning}</p>
-                </div>
-                <Bell className="w-8 h-8 text-amber-400" />
-              </div>
-            </div>
-            <div 
-              className={getStatusCardStyle('expired')}
-              onClick={() => handleStatusFilter('expired')}
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-400">Expired</p>
-                  <p className="text-2xl font-bold text-red-400">{statusCounts.expired}</p>
-                </div>
-                <Bell className="w-8 h-8 text-red-400" />
-              </div>
-            </div>
-          </div>
 
-          {/* Remove ExpirationChart section and add compliance score pie */}
-          <div className="bg-gray-800 p-6 rounded-lg shadow-lg border border-gray-700 flex flex-col items-center justify-center">
-            <h2 className="text-lg font-semibold text-white mb-4">Dairy Compliance Overall Score</h2>
-            <div className="relative w-40 h-40 flex items-center justify-center">
-              <svg className="w-full h-full" viewBox="0 0 120 120">
-                <circle cx="60" cy="60" r="54" fill="#23272f" stroke="#374151" strokeWidth="4" />
-                <circle
-                  cx="60" cy="60" r="54"
-                  fill="none"
-                  stroke="#2563eb"
-                  strokeWidth="10"
-                  strokeDasharray={339.292}
-                  strokeDashoffset={339.292 * (1 - complianceFraction)}
-                  strokeLinecap="round"
-                  style={{ transition: 'stroke-dashoffset 1s cubic-bezier(.4,2,.6,1)' }}
-                />
-              </svg>
-              <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <span className="text-4xl font-bold text-blue-400">{complianceScore}%</span>
-                <span className="text-gray-400 text-sm mt-1">Compliant</span>
+            {/* Compliance Score - 1/5 of the width */}
+            <div className="lg:col-span-1">
+              <div className="bg-gray-800 p-4 rounded-lg shadow-lg border border-gray-700 h-full flex flex-col items-center justify-center">
+                <h3 className="text-sm font-semibold text-white mb-3 text-center">Compliance Score</h3>
+                <div className="relative w-24 h-24 flex items-center justify-center">
+                  <svg className="w-full h-full" viewBox="0 0 120 120">
+                    <circle cx="60" cy="60" r="50" fill="#23272f" stroke="#374151" strokeWidth="3" />
+                    <circle
+                      cx="60" cy="60" r="50"
+                      fill="none"
+                      stroke="#2563eb"
+                      strokeWidth="8"
+                      strokeDasharray={314.16}
+                      strokeDashoffset={314.16 * (1 - complianceFraction)}
+                      strokeLinecap="round"
+                      style={{ transition: 'stroke-dashoffset 1s cubic-bezier(.4,2,.6,1)' }}
+                    />
+                  </svg>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center">
+                    <span className="text-2xl font-bold text-blue-400">{complianceScore}%</span>
+                  </div>
+                </div>
+                <p className="text-gray-400 text-xs mt-2 text-center">Parameters currently valid</p>
               </div>
             </div>
-            <p className="text-gray-400 mt-4 text-center">This score reflects the percentage of statutory parameters that are currently valid in your dairy unit.</p>
           </div>
 
           {/* Search and Filter Controls */}

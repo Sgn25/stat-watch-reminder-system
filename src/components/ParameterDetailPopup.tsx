@@ -36,7 +36,6 @@ interface ParameterDetailPopupProps {
   onClose: () => void;
 }
 
-// Utility for display
 function toDisplayDate(isoDate: string) {
   if (!isoDate) return '';
   const [year, month, day] = isoDate.split('-');
@@ -124,7 +123,6 @@ export const ParameterDetailPopup = ({ parameter, isOpen, onClose }: ParameterDe
   const [editingNoteId, setEditingNoteId] = useReactState<string | null>(null);
   const [editingNoteText, setEditingNoteText] = useReactState('');
 
-  // Fetch creator name if needed
   useEffect(() => {
     async function fetchCreator() {
       setIsFetchingCreator(true);
@@ -139,7 +137,6 @@ export const ParameterDetailPopup = ({ parameter, isOpen, onClose }: ParameterDe
     if (parameter.user_id) fetchCreator();
   }, [parameter.user_id]);
 
-  // Synthesize creation info if not present in history
   let displayHistory = history;
   if (!isLoadingHistory && (history.length === 0 || !history.some(h => h.action === 'created'))) {
     displayHistory = [
@@ -168,7 +165,6 @@ export const ParameterDetailPopup = ({ parameter, isOpen, onClose }: ParameterDe
     }
   };
 
-  // Simplified note handling
   const handleAddNote = () => {
     if (newNote.trim()) {
       addNote(newNote.trim());
@@ -301,7 +297,7 @@ export const ParameterDetailPopup = ({ parameter, isOpen, onClose }: ParameterDe
                       <CardTitle className="text-white">Update History</CardTitle>
                     </CardHeader>
                     <CardContent className="flex-1 overflow-hidden p-0">
-                      <ScrollArea className="h-[400px] p-6">
+                      <ScrollArea className="h-[350px] px-6">
                         {isLoadingHistory ? (
                           <div className="text-center py-8">
                             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-400 mx-auto"></div>
@@ -313,7 +309,7 @@ export const ParameterDetailPopup = ({ parameter, isOpen, onClose }: ParameterDe
                             <p className="text-gray-400">No update history available</p>
                           </div>
                         ) : (
-                          <div className="relative pl-8">
+                          <div className="relative pl-8 py-4">
                             {/* Vertical line */}
                             <div className="absolute left-2 top-0 bottom-0 w-1 bg-gray-600 rounded-full" style={{ zIndex: 0 }} />
                             <div className="space-y-6">
@@ -366,7 +362,7 @@ export const ParameterDetailPopup = ({ parameter, isOpen, onClose }: ParameterDe
                       <CardTitle className="text-white">Additional Notes</CardTitle>
                     </CardHeader>
                     <CardContent className="flex-1 overflow-hidden p-0">
-                      <div className="h-[450px] flex flex-col">
+                      <div className="h-[400px] flex flex-col">
                         {/* Add Note Form - Fixed at top */}
                         <div className="flex-shrink-0 p-4 bg-gray-700 border-b border-gray-600">
                           <h4 className="text-white font-medium mb-3">Add New Note</h4>
