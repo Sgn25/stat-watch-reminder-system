@@ -57,7 +57,7 @@ export const useEmailSubscription = () => {
           email_address: profile.email || '',
           is_subscribed: false,
           unsubscribed_at: new Date().toISOString(),
-        })
+        }, { onConflict: ['user_id', 'dairy_unit_id'] })
         .select()
         .single();
 
@@ -95,7 +95,7 @@ export const useEmailSubscription = () => {
           email_address: profile.email || '',
           is_subscribed: true,
           unsubscribed_at: null,
-        })
+        }, { onConflict: ['user_id', 'dairy_unit_id'] })
         .select()
         .single();
 

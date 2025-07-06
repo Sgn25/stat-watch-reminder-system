@@ -17,6 +17,11 @@ CREATE TABLE IF NOT EXISTS public.email_subscriptions (
 -- Add RLS to email_subscriptions
 ALTER TABLE public.email_subscriptions ENABLE ROW LEVEL SECURITY;
 
+-- Drop existing policies if they exist
+DROP POLICY IF EXISTS "Users can view their own email subscription" ON public.email_subscriptions;
+DROP POLICY IF EXISTS "Users can update their own email subscription" ON public.email_subscriptions;
+DROP POLICY IF EXISTS "Users can insert their own email subscription" ON public.email_subscriptions;
+
 -- Users can view their own email subscription
 CREATE POLICY "Users can view their own email subscription" 
   ON public.email_subscriptions 
@@ -35,7 +40,11 @@ CREATE POLICY "Users can insert their own email subscription"
   FOR INSERT 
   WITH CHECK (user_id = auth.uid());
 
--- Create indexes for better performance
+-- Create indexes for better performance (IF NOT EXISTS not supported for indexes, so we'll drop and recreate)
+DROP INDEX IF EXISTS idx_email_subscriptions_user_id;
+DROP INDEX IF EXISTS idx_email_subscriptions_dairy_unit_id;
+DROP INDEX IF EXISTS idx_email_subscriptions_is_subscribed;
+
 CREATE INDEX idx_email_subscriptions_user_id ON public.email_subscriptions(user_id);
 CREATE INDEX idx_email_subscriptions_dairy_unit_id ON public.email_subscriptions(dairy_unit_id);
 CREATE INDEX idx_email_subscriptions_is_subscribed ON public.email_subscriptions(is_subscribed);

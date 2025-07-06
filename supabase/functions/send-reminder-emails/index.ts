@@ -175,11 +175,11 @@ const handler = async (req: Request): Promise<Response> => {
               console.error(`Error checking email subscription for user ${reminder.user_id}:`, subscriptionError);
             }
 
-            // Only send email if user is subscribed (default to true if no subscription found)
-            const isSubscribed = emailSubscription?.is_subscribed ?? true;
+            // Only send email if user is subscribed (only if a row exists and is_subscribed is true)
+            const isSubscribed = emailSubscription?.is_subscribed === true;
             
             if (!isSubscribed) {
-              console.log(`Skipping email for reminder ${reminder.id} - user ${reminder.user_id} is unsubscribed`);
+              console.log(`Skipping email for reminder ${reminder.id} - user ${reminder.user_id} is unsubscribed or no subscription row found`);
               // Still mark reminder as sent to avoid reprocessing
               const { error: updateError } = await supabase
                 .from('reminders')
@@ -374,11 +374,11 @@ const handler = async (req: Request): Promise<Response> => {
                 console.error(`Error checking email subscription for user ${user.id}:`, subscriptionError);
               }
 
-              // Only send email if user is subscribed (default to true if no subscription found)
-              const isSubscribed = emailSubscription?.is_subscribed ?? true;
+              // Only send email if user is subscribed (only if a row exists and is_subscribed is true)
+              const isSubscribed = emailSubscription?.is_subscribed === true;
               
               if (!isSubscribed) {
-                console.log(`Skipping expiry email for parameter ${param.id} to ${user.id} - user is unsubscribed`);
+                console.log(`Skipping expiry email for parameter ${param.id} to ${user.id} - user is unsubscribed or no subscription row found`);
                 continue;
               }
               
