@@ -80,12 +80,12 @@ export const EditReminderForm = ({ reminder, onClose }: EditReminderFormProps) =
       <div>
         <Label htmlFor="parameter" className="text-gray-300">Parameter</Label>
         <Select value={formData.parameter_id} onValueChange={(value) => handleChange('parameter_id', value)}>
-          <SelectTrigger className="bg-gray-700 border-gray-600 text-white">
+          <SelectTrigger className="bg-gray-700/50 border-gray-600/50 text-white backdrop-blur-sm">
             <SelectValue placeholder="Select parameter" />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent className="bg-gray-800/90 border-gray-600/50 backdrop-blur-sm">
             {parameters.map((param) => (
-              <SelectItem key={param.id} value={param.id}>
+              <SelectItem key={param.id} value={param.id} className="text-white hover:bg-gray-700/50">
                 {param.name} - {param.category}
               </SelectItem>
             ))}
@@ -101,7 +101,7 @@ export const EditReminderForm = ({ reminder, onClose }: EditReminderFormProps) =
             type="date"
             value={formData.reminder_date}
             onChange={(e) => handleChange('reminder_date', e.target.value)}
-            className="bg-gray-700 border-gray-600 text-white"
+            className="bg-gray-700/50 border-gray-600/50 text-white backdrop-blur-sm"
             required
           />
         </div>
@@ -112,7 +112,7 @@ export const EditReminderForm = ({ reminder, onClose }: EditReminderFormProps) =
             type="time"
             value={formData.reminder_time}
             onChange={(e) => handleChange('reminder_time', e.target.value)}
-            className="bg-gray-700 border-gray-600 text-white"
+            className="bg-gray-700/50 border-gray-600/50 text-white backdrop-blur-sm"
             required
           />
         </div>
@@ -125,7 +125,7 @@ export const EditReminderForm = ({ reminder, onClose }: EditReminderFormProps) =
           placeholder="Add a custom message for the reminder..."
           value={formData.custom_message}
           onChange={(e) => handleChange('custom_message', e.target.value)}
-          className="bg-gray-700 border-gray-600 text-white placeholder-gray-400"
+          className="bg-gray-700/50 border-gray-600/50 text-white placeholder-gray-400 backdrop-blur-sm"
           rows={3}
         />
       </div>
@@ -135,21 +135,21 @@ export const EditReminderForm = ({ reminder, onClose }: EditReminderFormProps) =
           type="button"
           variant="outline"
           onClick={onClose}
-          className="border-gray-600 text-gray-300 hover:bg-gray-700"
+          className="border-gray-600/50 text-gray-300 hover:bg-gray-700/50 backdrop-blur-sm"
         >
           Cancel
         </Button>
         <Button
           type="submit"
           disabled={isUpdatingReminder}
-          className="bg-blue-600 hover:bg-blue-700"
+          className="bg-blue-600 hover:bg-blue-700 backdrop-blur-sm"
         >
           {isUpdatingReminder && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           Update Reminder
         </Button>
       </div>
-      {error && <div className="text-red-500 text-sm mt-2">{error}</div>}
-      {success && <div className="text-green-500 text-sm mt-2">Reminder updated!</div>}
+      {error && <div className="text-red-400 text-sm mt-2 backdrop-blur-sm bg-red-900/20 p-2 rounded">{error}</div>}
+      {success && <div className="text-green-400 text-sm mt-2 backdrop-blur-sm bg-green-900/20 p-2 rounded">Reminder updated!</div>}
     </form>
   );
 };

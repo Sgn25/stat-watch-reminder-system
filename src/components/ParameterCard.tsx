@@ -105,7 +105,7 @@ export const ParameterCard = ({ parameter, viewMode = 'grid' }: ParameterCardPro
     <>
       {viewMode === 'grid' ? (
         <div
-          className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-all duration-200 hover:scale-[1.02] relative flex flex-col min-h-[260px] cursor-pointer group"
+          className="glass-card rounded-lg p-6 relative flex flex-col min-h-[260px] cursor-pointer group"
           onClick={() => setIsDetailPopupOpen(true)}
           tabIndex={0}
           role="button"
@@ -113,28 +113,34 @@ export const ParameterCard = ({ parameter, viewMode = 'grid' }: ParameterCardPro
         >
           {/* Top-right badge */}
           <div className="absolute top-4 right-4 z-10">
-            <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold border ${badge.color} ${badge.animate} shadow-sm`}> 
+            <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold ${badge.animate} ${
+              parameter.daysUntilExpiry < 0 ? 'badge-glow-expired' :
+              parameter.daysUntilExpiry === 0 ? 'badge-glow-due' :
+              parameter.daysUntilExpiry <= 10 ? 'badge-glow-expired' :
+              parameter.daysUntilExpiry <= 30 ? 'badge-glow-warning' :
+              'badge-glow-valid'
+            }`}> 
               {badge.icon}
               {badge.label}
             </span>
           </div>
           <div className="flex items-start justify-between mb-4">
             <div>
-              <h3 className="text-lg font-semibold text-gray-900 group-hover:text-blue-600 transition-colors">
+              <h3 className="text-lg font-semibold text-white group-hover:text-blue-300 transition-colors">
                 {parameter.name}
               </h3>
-              <p className="text-sm text-gray-600">{parameter.category}</p>
+              <p className="text-sm text-gray-300">{parameter.category}</p>
             </div>
           </div>
           {parameter.description && (
-            <p className="text-sm text-gray-600 mb-4">{parameter.description}</p>
+            <p className="text-sm text-gray-300 mb-4">{parameter.description}</p>
           )}
           <div className="space-y-2 mb-4">
-            <div className="flex items-center text-sm text-gray-600">
+            <div className="flex items-center text-sm text-gray-300">
               <Calendar className="w-4 h-4 mr-2" />
               <span>Issued: {toDisplayDate(parameter.issue_date)}</span>
             </div>
-            <div className="flex items-center text-sm text-gray-600">
+            <div className="flex items-center text-sm text-gray-300">
               <Calendar className="w-4 h-4 mr-2" />
               <span>Expires: {toDisplayDate(parameter.expiry_date)}</span>
             </div>
@@ -142,31 +148,31 @@ export const ParameterCard = ({ parameter, viewMode = 'grid' }: ParameterCardPro
           
           {/* Reminder Information */}
           {isLoadingReminders ? (
-            <div className="mb-4 bg-gray-50 border border-gray-200 rounded-lg p-3">
+            <div className="mb-4 glass-reminder-empty rounded-lg p-3">
               <div className="flex items-center gap-2">
-                <div className="w-4 h-4 bg-gray-200 rounded animate-pulse"></div>
-                <span className="text-sm text-gray-500">Loading reminders...</span>
+                <div className="w-4 h-4 bg-gray-400 rounded animate-pulse"></div>
+                <span className="text-sm text-gray-300">Loading reminders...</span>
               </div>
             </div>
           ) : (
             <div className="mb-4">
               {upcomingReminders.length > 0 ? (
-                <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                <div className="glass-reminder rounded-lg p-3">
                   <div className="flex items-center gap-2 mb-2">
-                    <Bell className="w-4 h-4 text-green-600" />
-                    <span className="text-sm font-medium text-green-800">
+                    <Bell className="w-4 h-4 text-green-400" />
+                    <span className="text-sm font-medium text-green-300">
                       {upcomingReminders.length} Reminder{upcomingReminders.length > 1 ? 's' : ''} Set
                     </span>
                   </div>
                   {nextReminder && (
-                    <div className="text-xs text-green-700">
+                    <div className="text-xs text-green-200">
                       Next: {toDisplayDate(nextReminder.reminder_date)} at {nextReminder.reminder_time}
                     </div>
                   )}
                 </div>
               ) : (
                 <div 
-                  className="bg-gray-50 border border-gray-200 rounded-lg p-3 cursor-pointer hover:bg-gray-100 transition-colors"
+                  className="glass-reminder-empty rounded-lg p-3 cursor-pointer transition-all duration-200"
                   onClick={(e) => {
                     e.stopPropagation();
                     setIsAddReminderDialogOpen(true);
@@ -174,7 +180,7 @@ export const ParameterCard = ({ parameter, viewMode = 'grid' }: ParameterCardPro
                 >
                   <div className="flex items-center gap-2">
                     <Bell className="w-4 h-4 text-gray-400" />
-                    <span className="text-sm text-gray-600">No reminders set</span>
+                    <span className="text-sm text-gray-300">No reminders set</span>
                   </div>
                 </div>
               )}
@@ -182,7 +188,7 @@ export const ParameterCard = ({ parameter, viewMode = 'grid' }: ParameterCardPro
           )}
           {/* Days remaining at bottom */}
           <div className="mt-auto pt-2 flex items-center justify-between">
-            <span className={`text-sm font-semibold ${daysText.color}`}>{daysText.text}</span>
+            <span className={`text-sm font-semibold ${daysText.color.replace('text-red-600', 'text-red-400').replace('text-amber-600', 'text-yellow-400').replace('text-green-600', 'text-green-400').replace('text-blue-600', 'text-blue-400')}`}>{daysText.text}</span>
             <div className="flex gap-2" onClick={e => e.stopPropagation()}>
               <TooltipProvider>
                 <Tooltip>
@@ -190,7 +196,7 @@ export const ParameterCard = ({ parameter, viewMode = 'grid' }: ParameterCardPro
                     <Button
                       size="icon"
                       variant="ghost"
-                      className="text-blue-600 hover:bg-blue-50 hover:text-blue-800 focus:ring-2 focus:ring-blue-300"
+                      className="text-blue-400 hover:bg-blue-900/50 hover:text-blue-300 focus:ring-2 focus:ring-blue-400/50"
                       onClick={() => setIsEditDialogOpen(true)}
                       aria-label="Edit Parameter"
                     >
@@ -204,7 +210,7 @@ export const ParameterCard = ({ parameter, viewMode = 'grid' }: ParameterCardPro
                     <Button
                       size="icon"
                       variant="ghost"
-                      className="text-red-600 hover:bg-red-50 hover:text-red-800 focus:ring-2 focus:ring-red-300"
+                      className="text-red-400 hover:bg-red-900/50 hover:text-red-300 focus:ring-2 focus:ring-red-400/50"
                       onClick={handleDelete}
                       disabled={isDeletingParameter}
                       aria-label="Delete Parameter"
@@ -220,7 +226,7 @@ export const ParameterCard = ({ parameter, viewMode = 'grid' }: ParameterCardPro
         </div>
       ) : (
         <div
-          className="flex items-center px-6 py-4 bg-gray-900 border-b border-gray-800 hover:bg-gray-800 hover:border-blue-500 transition-colors cursor-pointer group rounded-md"
+          className="flex items-center px-6 py-4 glass-row hover:border-blue-500 transition-colors cursor-pointer group rounded-md"
           onClick={() => setIsDetailPopupOpen(true)}
           tabIndex={0}
           role="button"
@@ -228,7 +234,13 @@ export const ParameterCard = ({ parameter, viewMode = 'grid' }: ParameterCardPro
         >
           <div className="flex-1">
             <div className="flex items-center gap-3">
-              <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold border ${badge.color.replace('bg-amber-50', 'bg-gray-800').replace('bg-green-50', 'bg-gray-800').replace('bg-red-50', 'bg-gray-800')} ${badge.animate} shadow-sm bg-gray-800 text-white border-blue-400`}> 
+              <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold ${badge.animate} ${
+                parameter.daysUntilExpiry < 0 ? 'badge-glow-expired' :
+                parameter.daysUntilExpiry === 0 ? 'badge-glow-due' :
+                parameter.daysUntilExpiry <= 10 ? 'badge-glow-expired' :
+                parameter.daysUntilExpiry <= 30 ? 'badge-glow-warning' :
+                'badge-glow-valid'
+              }`}> 
                 {badge.icon}
                 {badge.label}
               </span>
@@ -277,7 +289,7 @@ export const ParameterCard = ({ parameter, viewMode = 'grid' }: ParameterCardPro
                   <Button
                     size="icon"
                     variant="ghost"
-                    className="text-blue-400 hover:bg-blue-900 hover:text-blue-300 focus:ring-2 focus:ring-blue-400"
+                    className="text-blue-400 hover:bg-blue-900/50 hover:text-blue-300 focus:ring-2 focus:ring-blue-400/50"
                     onClick={() => setIsEditDialogOpen(true)}
                     aria-label="Edit Parameter"
                   >
@@ -291,7 +303,7 @@ export const ParameterCard = ({ parameter, viewMode = 'grid' }: ParameterCardPro
                   <Button
                     size="icon"
                     variant="ghost"
-                    className="text-red-400 hover:bg-red-900 hover:text-red-300 focus:ring-2 focus:ring-red-400"
+                    className="text-red-400 hover:bg-red-900/50 hover:text-red-300 focus:ring-2 focus:ring-red-400/50"
                     onClick={handleDelete}
                     disabled={isDeletingParameter}
                     aria-label="Delete Parameter"
@@ -308,7 +320,7 @@ export const ParameterCard = ({ parameter, viewMode = 'grid' }: ParameterCardPro
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Edit Parameter</DialogTitle>
+            <DialogTitle className="text-white">Edit Parameter</DialogTitle>
           </DialogHeader>
           <EditParameterForm parameter={parameter} onClose={() => setIsEditDialogOpen(false)} />
         </DialogContent>
@@ -326,7 +338,7 @@ export const ParameterCard = ({ parameter, viewMode = 'grid' }: ParameterCardPro
       
       {/* Add Reminder Dialog */}
       <Dialog open={isAddReminderDialogOpen} onOpenChange={setIsAddReminderDialogOpen}>
-        <DialogContent className="sm:max-w-md bg-gray-800 border-gray-700">
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="text-white">Set Reminder for {parameter.name}</DialogTitle>
           </DialogHeader>

@@ -75,7 +75,7 @@ const Parameters = () => {
                   Add Parameter
                 </Button>
               </DialogTrigger>
-              <DialogContent className="sm:max-w-md bg-gray-800 border-gray-700">
+                              <DialogContent className="sm:max-w-md">
                 <DialogHeader>
                   <DialogTitle className="text-white">Add New Parameter</DialogTitle>
                 </DialogHeader>
@@ -90,14 +90,14 @@ const Parameters = () => {
               placeholder="Search parameters..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="bg-gray-700 border-gray-600 text-white placeholder-gray-400"
+              className="bg-gray-700/50 border-gray-600/50 text-white placeholder-gray-400 backdrop-blur-sm"
             />
           </div>
 
-          <div className="bg-gray-800 rounded-lg border border-gray-700">
+          <div className="space-y-3">
             <Table>
               <TableHeader>
-                <TableRow className="border-gray-700">
+                <TableRow className="border-gray-700/50">
                   <TableHead className="text-gray-300">Name</TableHead>
                   <TableHead className="text-gray-300">Category</TableHead>
                   <TableHead className="text-gray-300">Issue Date</TableHead>
@@ -106,9 +106,9 @@ const Parameters = () => {
                   <TableHead className="text-gray-300">Actions</TableHead>
                 </TableRow>
               </TableHeader>
-              <TableBody>
+              <TableBody className="space-y-2">
                 {filteredParameters.map((parameter) => (
-                  <TableRow key={parameter.id} className="border-gray-700 hover:bg-gray-700">
+                  <TableRow key={parameter.id} className="glass-row border-gray-700/30 hover:border-blue-500 transition-all duration-200 rounded-lg mb-2">
                     <TableCell className="text-white font-medium">{parameter.name}</TableCell>
                     <TableCell className="text-gray-300">{parameter.category}</TableCell>
                     <TableCell className="text-gray-300">
@@ -118,7 +118,7 @@ const Parameters = () => {
                       {toDisplayDate(parameter.expiry_date)}
                     </TableCell>
                     <TableCell>
-                      <Badge className={`${getStatusColor(parameter.status)} text-white`}>
+                      <Badge className={`${getStatusColor(parameter.status)} text-white backdrop-blur-sm`}>
                         {parameter.status}
                       </Badge>
                     </TableCell>
@@ -131,7 +131,7 @@ const Parameters = () => {
                             setSelectedParameter(parameter);
                             setIsDetailOpen(true);
                           }}
-                          className="text-blue-400 hover:text-blue-300 hover:bg-gray-600"
+                          className="text-blue-400 hover:text-blue-300 hover:bg-blue-900/20 backdrop-blur-sm"
                         >
                           <Eye className="w-4 h-4" />
                         </Button>
@@ -139,7 +139,7 @@ const Parameters = () => {
                           variant="ghost"
                           size="sm"
                           onClick={() => handleDelete(parameter.id)}
-                          className="text-red-400 hover:text-red-300 hover:bg-gray-600"
+                          className="text-red-400 hover:text-red-300 hover:bg-red-900/20 backdrop-blur-sm"
                         >
                           <Trash2 className="w-4 h-4" />
                         </Button>
@@ -153,7 +153,7 @@ const Parameters = () => {
 
           {/* Parameter Detail Dialog */}
           <Dialog open={isDetailOpen} onOpenChange={setIsDetailOpen}>
-            <DialogContent className="sm:max-w-lg bg-gray-800 border-gray-700">
+            <DialogContent className="sm:max-w-lg">
               <DialogHeader>
                 <DialogTitle className="text-white">Parameter Details</DialogTitle>
               </DialogHeader>
@@ -161,7 +161,7 @@ const Parameters = () => {
                 <div className="space-y-4">
                   <div>
                     <h3 className="text-lg font-semibold text-white">{selectedParameter.name}</h3>
-                    <p className="text-gray-400">{selectedParameter.category}</p>
+                    <p className="text-gray-300">{selectedParameter.category}</p>
                   </div>
                   {selectedParameter.description && (
                     <div>
@@ -181,7 +181,7 @@ const Parameters = () => {
                   </div>
                   <div>
                     <h4 className="font-medium text-gray-300">Status</h4>
-                    <Badge className={`${getStatusColor(selectedParameter.status)} text-white mt-1`}>
+                    <Badge className={`${getStatusColor(selectedParameter.status)} text-white mt-1 backdrop-blur-sm`}>
                       {selectedParameter.status} - {selectedParameter.daysUntilExpiry > 0 
                         ? `${selectedParameter.daysUntilExpiry} days remaining`
                         : `Expired ${Math.abs(selectedParameter.daysUntilExpiry)} days ago`}
@@ -191,7 +191,7 @@ const Parameters = () => {
                     <Button
                       variant="outline"
                       onClick={() => setIsDetailOpen(false)}
-                      className="border-gray-600 text-gray-300 hover:bg-gray-700"
+                      className="border-gray-600/50 text-gray-300 hover:bg-gray-700/50 backdrop-blur-sm"
                     >
                       Close
                     </Button>

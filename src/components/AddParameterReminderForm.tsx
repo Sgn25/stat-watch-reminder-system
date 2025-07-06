@@ -35,7 +35,7 @@ export const AddParameterReminderForm = ({ parameter, onClose }: AddParameterRem
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
         <Label className="text-gray-300">Parameter</Label>
-        <div className="bg-gray-700 border border-gray-600 rounded-md px-3 py-2 text-white">
+        <div className="bg-gray-700/50 border border-gray-600/50 rounded-md px-3 py-2 text-white backdrop-blur-sm">
           {parameter.name} - {parameter.category}
         </div>
       </div>
@@ -48,7 +48,7 @@ export const AddParameterReminderForm = ({ parameter, onClose }: AddParameterRem
             type="date"
             value={formData.reminder_date}
             onChange={(e) => handleChange('reminder_date', e.target.value)}
-            className="bg-gray-700 border-gray-600 text-white"
+            className="bg-gray-700/50 border-gray-600/50 text-white backdrop-blur-sm"
             required
           />
         </div>
@@ -59,7 +59,7 @@ export const AddParameterReminderForm = ({ parameter, onClose }: AddParameterRem
             type="time"
             value={formData.reminder_time}
             onChange={(e) => handleChange('reminder_time', e.target.value)}
-            className="bg-gray-700 border-gray-600 text-white"
+            className="bg-gray-700/50 border-gray-600/50 text-white backdrop-blur-sm"
             required
           />
         </div>
@@ -72,7 +72,7 @@ export const AddParameterReminderForm = ({ parameter, onClose }: AddParameterRem
           placeholder="Add a custom message for the reminder..."
           value={formData.custom_message}
           onChange={(e) => handleChange('custom_message', e.target.value)}
-          className="bg-gray-700 border-gray-600 text-white placeholder-gray-400"
+          className="bg-gray-700/50 border-gray-600/50 text-white placeholder-gray-400 backdrop-blur-sm"
           rows={3}
         />
       </div>
@@ -82,14 +82,14 @@ export const AddParameterReminderForm = ({ parameter, onClose }: AddParameterRem
           type="button"
           variant="outline"
           onClick={onClose}
-          className="border-gray-600 text-gray-300 hover:bg-gray-700"
+          className="border-gray-600/50 text-gray-300 hover:bg-gray-700/50 backdrop-blur-sm"
         >
           Cancel
         </Button>
         <Button
           type="submit"
           disabled={isAddingReminder}
-          className="bg-blue-600 hover:bg-blue-700"
+          className="bg-blue-600 hover:bg-blue-700 backdrop-blur-sm"
         >
           {isAddingReminder && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           Add Reminder

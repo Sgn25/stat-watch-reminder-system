@@ -45,13 +45,13 @@ export const ReminderCard = ({ reminder }: ReminderCardProps) => {
 
   return (
     <>
-      <Card className="bg-gray-800 border-gray-700">
+      <Card className="glass-card border-0">
         <CardHeader>
           <CardTitle className="text-white flex items-center gap-2">
             <Bell className={`w-5 h-5 ${isOverdue ? 'text-red-400' : isToday ? 'text-yellow-400' : 'text-blue-400'}`} />
             {reminder.statutory_parameters?.name}
           </CardTitle>
-          <CardDescription className="text-gray-400">
+          <CardDescription className="text-gray-300">
             {reminder.statutory_parameters?.category} - Expires: {formatDate(reminder.statutory_parameters?.expiry_date)}
           </CardDescription>
         </CardHeader>
@@ -68,12 +68,12 @@ export const ReminderCard = ({ reminder }: ReminderCardProps) => {
               </div>
             </div>
             
-            <div className={`text-sm px-3 py-2 rounded-md ${
+            <div className={`text-sm px-3 py-2 rounded-md backdrop-filter backdrop-blur-sm ${
               isOverdue 
-                ? 'bg-red-900/50 text-red-300 border border-red-700' 
+                ? 'glass-status-expired text-red-300' 
                 : isToday 
-                  ? 'bg-yellow-900/50 text-yellow-300 border border-yellow-700'
-                  : 'bg-green-900/50 text-green-300 border border-green-700'
+                  ? 'glass-status-due text-yellow-300'
+                  : 'glass-status-valid text-green-300'
             }`}>
               {isOverdue 
                 ? `Overdue by ${Math.abs(daysUntilReminder)} days`
@@ -84,7 +84,7 @@ export const ReminderCard = ({ reminder }: ReminderCardProps) => {
             </div>
 
             {reminder.custom_message && (
-              <div className="p-3 bg-gray-700 rounded-md">
+              <div className="p-3 glass-reminder-empty rounded-md">
                 <p className="text-sm text-gray-300">{reminder.custom_message}</p>
               </div>
             )}
@@ -94,7 +94,7 @@ export const ReminderCard = ({ reminder }: ReminderCardProps) => {
                 variant="outline"
                 size="sm"
                 onClick={() => setIsEditDialogOpen(true)}
-                className="text-blue-400 border-blue-600 hover:bg-blue-900/20"
+                className="text-blue-400 border-blue-600/50 hover:bg-blue-900/20 backdrop-blur-sm"
               >
                 <Edit className="w-4 h-4 mr-1" />
                 Edit
@@ -104,7 +104,7 @@ export const ReminderCard = ({ reminder }: ReminderCardProps) => {
                 size="sm"
                 onClick={handleDelete}
                 disabled={isDeletingReminder}
-                className="text-red-400 border-red-600 hover:bg-red-900/20"
+                className="text-red-400 border-red-600/50 hover:bg-red-900/20 backdrop-blur-sm"
               >
                 <Trash2 className="w-4 h-4 mr-1" />
                 Delete
@@ -115,7 +115,7 @@ export const ReminderCard = ({ reminder }: ReminderCardProps) => {
       </Card>
 
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="sm:max-w-md bg-gray-800 border-gray-700">
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="text-white">Edit Reminder</DialogTitle>
           </DialogHeader>

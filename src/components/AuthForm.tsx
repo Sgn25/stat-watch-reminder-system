@@ -92,7 +92,10 @@ export const AuthForm = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center p-4">
+    <div
+      className="min-h-screen flex items-center justify-center p-4 bg-cover bg-center"
+      style={{ backgroundImage: 'url(/auth-bg.jpg)' }}
+    >
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <div className="flex justify-center mb-4">
@@ -101,16 +104,17 @@ export const AuthForm = () => {
             </div>
           </div>
           <h1 className="text-3xl font-bold text-white mb-2">Stat Monitor</h1>
-          <p className="text-gray-300">Monitor your Licenses/Permits/Contracts</p>
+          <p className="text-gray-200">Monitor your Licenses/Permits/Contracts</p>
         </div>
 
-        <Card className="shadow-2xl border-gray-700 bg-gray-800">
+        {/* Glassmorphism Vista-style Card */}
+        <div className="glass-card-vista shadow-2xl">
           <Tabs defaultValue="signin" className="w-full">
-            <TabsList className="grid w-full grid-cols-2 bg-gray-700">
-              <TabsTrigger value="signin" className="text-gray-300 data-[state=active]:bg-blue-600 data-[state=active]:text-white">
+            <TabsList className="grid w-full grid-cols-2 glass-tabs-vista">
+              <TabsTrigger value="signin" className="glass-tab-trigger-vista">
                 Sign In
               </TabsTrigger>
-              <TabsTrigger value="signup" className="text-gray-300 data-[state=active]:bg-blue-600 data-[state=active]:text-white">
+              <TabsTrigger value="signup" className="glass-tab-trigger-vista">
                 Sign Up
               </TabsTrigger>
             </TabsList>
@@ -118,37 +122,37 @@ export const AuthForm = () => {
             <TabsContent value="signin">
               <CardHeader>
                 <CardTitle className="text-white">Welcome back</CardTitle>
-                <CardDescription className="text-gray-400">
+                <CardDescription className="text-gray-200">
                   Sign in to your stat monitor account
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <form onSubmit={handleSignIn} className="space-y-4">
                   <div>
-                    <Label htmlFor="signin-email" className="text-gray-300">Email</Label>
+                    <Label htmlFor="signin-email" className="text-gray-200">Email</Label>
                     <Input
                       id="signin-email"
                       type="email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       placeholder="Enter your email"
-                      className="bg-gray-700 border-gray-600 text-white placeholder-gray-400"
+                      className="glass-input-vista"
                       required
                     />
                   </div>
                   <div>
-                    <Label htmlFor="signin-password" className="text-gray-300">Password</Label>
+                    <Label htmlFor="signin-password" className="text-gray-200">Password</Label>
                     <Input
                       id="signin-password"
                       type="password"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder="Enter your password"
-                      className="bg-gray-700 border-gray-600 text-white placeholder-gray-400"
+                      className="glass-input-vista"
                       required
                     />
                   </div>
-                  <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700" disabled={loading}>
+                  <Button type="submit" className="w-full glass-btn-vista" disabled={loading}>
                     {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     Sign In
                   </Button>
@@ -159,76 +163,74 @@ export const AuthForm = () => {
             <TabsContent value="signup">
               <CardHeader>
                 <CardTitle className="text-white">Create account</CardTitle>
-                <CardDescription className="text-gray-400">
+                <CardDescription className="text-gray-200">
                   Join your dairy unit management system
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <form onSubmit={handleSignUp} className="space-y-4">
                   <div>
-                    <Label htmlFor="signup-name" className="text-gray-300">Full Name</Label>
+                    <Label htmlFor="signup-name" className="text-gray-200">Full Name</Label>
                     <Input
                       id="signup-name"
                       type="text"
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
                       placeholder="Enter your full name"
-                      className="bg-gray-700 border-gray-600 text-white placeholder-gray-400"
+                      className="glass-input-vista"
                       required
                     />
                   </div>
                   <div>
-                    <Label htmlFor="signup-email" className="text-gray-300">Email</Label>
+                    <Label htmlFor="signup-email" className="text-gray-200">Email</Label>
                     <Input
                       id="signup-email"
                       type="email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       placeholder="Enter your email"
-                      className="bg-gray-700 border-gray-600 text-white placeholder-gray-400"
+                      className="glass-input-vista"
                       required
                     />
                   </div>
                   <div>
-                    <Label htmlFor="signup-password" className="text-gray-300">Password</Label>
+                    <Label htmlFor="signup-password" className="text-gray-200">Password</Label>
                     <Input
                       id="signup-password"
                       type="password"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder="Create a password"
-                      className="bg-gray-700 border-gray-600 text-white placeholder-gray-400"
+                      className="glass-input-vista"
                       required
                     />
                   </div>
                   <div>
-                    <Label htmlFor="dairy-unit" className="text-gray-300">Select Dairy Unit</Label>
+                    <Label htmlFor="signup-dairy" className="text-gray-200">Dairy Unit</Label>
                     <Select value={selectedDairyUnit} onValueChange={setSelectedDairyUnit}>
-                      <SelectTrigger className="bg-gray-700 border-gray-600 text-white">
-                        <SelectValue placeholder="Choose your dairy unit" />
+                      <SelectTrigger className="glass-input-vista">
+                        <SelectValue placeholder="Select dairy unit" />
                       </SelectTrigger>
-                      <SelectContent className="bg-gray-700 border-gray-600">
+                      <SelectContent>
                         {unitsLoading ? (
-                          <SelectItem value="loading" disabled>Loading units...</SelectItem>
+                          <SelectItem value="" disabled>Loading...</SelectItem>
                         ) : (
                           dairyUnits.map((unit) => (
-                            <SelectItem key={unit.id} value={unit.id} className="text-white hover:bg-gray-600">
-                              {unit.name} ({unit.code})
-                            </SelectItem>
+                            <SelectItem key={unit.id} value={unit.id}>{unit.name}</SelectItem>
                           ))
                         )}
                       </SelectContent>
                     </Select>
                   </div>
-                  <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700" disabled={loading || !selectedDairyUnit}>
+                  <Button type="submit" className="w-full glass-btn-vista" disabled={loading}>
                     {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    Create Account
+                    Sign Up
                   </Button>
                 </form>
               </CardContent>
             </TabsContent>
           </Tabs>
-        </Card>
+        </div>
       </div>
     </div>
   );

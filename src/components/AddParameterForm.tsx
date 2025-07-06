@@ -50,7 +50,7 @@ export const AddParameterForm = ({ onClose }: AddParameterFormProps) => {
           value={formData.name}
           onChange={(e) => handleChange('name', e.target.value)}
           placeholder="Enter parameter name"
-          className="bg-gray-700 border-gray-600 text-white placeholder-gray-400"
+          className="bg-gray-700/50 border-gray-600/50 text-white placeholder-gray-400 backdrop-blur-sm"
           required
         />
       </div>
@@ -58,12 +58,12 @@ export const AddParameterForm = ({ onClose }: AddParameterFormProps) => {
       <div>
         <Label htmlFor="category" className="text-gray-300">Category</Label>
         <Select value={formData.category} onValueChange={(value) => handleChange('category', value)}>
-          <SelectTrigger className="bg-gray-700 border-gray-600 text-white">
+          <SelectTrigger className="bg-gray-700/50 border-gray-600/50 text-white backdrop-blur-sm">
             <SelectValue placeholder="Select category" />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent className="bg-gray-800/90 border-gray-600/50 backdrop-blur-sm">
             {categories.map((category) => (
-              <SelectItem key={category} value={category}>
+              <SelectItem key={category} value={category} className="text-white hover:bg-gray-700/50">
                 {category}
               </SelectItem>
             ))}
@@ -78,7 +78,7 @@ export const AddParameterForm = ({ onClose }: AddParameterFormProps) => {
           value={formData.description}
           onChange={(e) => handleChange('description', e.target.value)}
           placeholder="Enter description"
-          className="bg-gray-700 border-gray-600 text-white placeholder-gray-400"
+          className="bg-gray-700/50 border-gray-600/50 text-white placeholder-gray-400 backdrop-blur-sm"
           rows={3}
         />
       </div>
@@ -91,7 +91,7 @@ export const AddParameterForm = ({ onClose }: AddParameterFormProps) => {
             type="date"
             value={formData.issue_date}
             onChange={(e) => handleChange('issue_date', e.target.value)}
-            className="bg-gray-700 border-gray-600 text-white"
+            className="bg-gray-700/50 border-gray-600/50 text-white backdrop-blur-sm"
             required
           />
         </div>
@@ -102,7 +102,7 @@ export const AddParameterForm = ({ onClose }: AddParameterFormProps) => {
             type="date"
             value={formData.expiry_date}
             onChange={(e) => handleChange('expiry_date', e.target.value)}
-            className="bg-gray-700 border-gray-600 text-white"
+            className="bg-gray-700/50 border-gray-600/50 text-white backdrop-blur-sm"
             required
           />
         </div>
@@ -113,14 +113,14 @@ export const AddParameterForm = ({ onClose }: AddParameterFormProps) => {
           type="button"
           variant="outline"
           onClick={onClose}
-          className="border-gray-600 text-gray-300 hover:bg-gray-700"
+          className="border-gray-600/50 text-gray-300 hover:bg-gray-700/50 backdrop-blur-sm"
         >
           Cancel
         </Button>
         <Button
           type="submit"
           disabled={isAddingParameter}
-          className="bg-blue-600 hover:bg-blue-700"
+          className="bg-blue-600 hover:bg-blue-700 backdrop-blur-sm"
         >
           {isAddingParameter && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           Add Parameter

@@ -80,13 +80,13 @@ export const ParameterDetailPopup: React.FC<ParameterDetailPopupProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-3xl max-h-[95vh] bg-gray-800 border-gray-700 text-white mx-4 overflow-hidden flex flex-col">
+      <DialogContent className="max-w-3xl max-h-[95vh] text-white overflow-hidden flex flex-col">
         <DialogHeader className="flex-shrink-0">
           <div className="flex items-center justify-between">
             <DialogTitle className="text-xl font-bold text-white pr-8">{parameter.name}</DialogTitle>
             <button
               onClick={onClose}
-              className="absolute right-4 top-4 p-1 hover:bg-gray-700 rounded-full transition-colors lg:hidden"
+              className="absolute right-4 top-4 p-1 hover:bg-gray-700/50 rounded-full transition-colors lg:hidden backdrop-blur-sm"
             >
               <X className="w-5 h-5 text-gray-400" />
             </button>
@@ -96,16 +96,16 @@ export const ParameterDetailPopup: React.FC<ParameterDetailPopupProps> = ({
         <div className="flex-1 overflow-y-auto">
           <div className="space-y-6 pr-2">
             {/* Parameter Details */}
-            <div className="bg-gray-700 rounded-lg p-4 space-y-4">
+            <div className="glass-reminder-empty rounded-lg p-4 space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <Badge className={`${getStatusColor(parameter.status)} text-sm px-3 py-1 w-fit`}>
+                <Badge className={`${getStatusColor(parameter.status)} text-sm px-3 py-1 w-fit backdrop-blur-sm`}>
                   {parameter.status.charAt(0).toUpperCase() + parameter.status.slice(1)}
                 </Badge>
                 <Button 
                   onClick={() => onEdit(parameter)}
                   variant="outline"
                   size="sm"
-                  className="border-gray-600 text-gray-300 hover:bg-gray-600 w-full sm:w-auto"
+                  className="border-gray-600/50 text-gray-300 hover:bg-gray-600/50 w-full sm:w-auto backdrop-blur-sm"
                 >
                   <Edit className="w-4 h-4 mr-2" />
                   Edit Parameter
@@ -164,7 +164,7 @@ export const ParameterDetailPopup: React.FC<ParameterDetailPopupProps> = ({
             </div>
 
             {/* Add Note Section */}
-            <div className="bg-gray-700 rounded-lg p-4">
+            <div className="glass-reminder-empty rounded-lg p-4">
               <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
                 <MessageSquare className="w-5 h-5 text-blue-400" />
                 Add Note
@@ -173,12 +173,12 @@ export const ParameterDetailPopup: React.FC<ParameterDetailPopupProps> = ({
                 value={newNote}
                 onChange={(e) => setNewNote(e.target.value)}
                 placeholder="Add a note about this parameter..."
-                className="bg-gray-800 border-gray-600 text-white placeholder-gray-400 mb-3 min-h-[80px] resize-none"
+                className="bg-gray-800/50 border-gray-600/50 text-white placeholder-gray-400 mb-3 min-h-[80px] resize-none backdrop-blur-sm"
               />
               <Button 
                 onClick={handleAddNote}
                 disabled={!newNote.trim() || isAddingNote}
-                className="bg-blue-600 hover:bg-blue-700 text-white w-full sm:w-auto"
+                className="bg-blue-600 hover:bg-blue-700 text-white w-full sm:w-auto backdrop-blur-sm"
               >
                 {isAddingNote ? 'Adding...' : 'Add Note'}
               </Button>
@@ -186,14 +186,14 @@ export const ParameterDetailPopup: React.FC<ParameterDetailPopupProps> = ({
 
             {/* Notes Section */}
             {notes.length > 0 && (
-              <div className="bg-gray-700 rounded-lg p-4">
+              <div className="glass-reminder-empty rounded-lg p-4">
                 <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
                   <MessageSquare className="w-5 h-5 text-amber-400" />
                   Notes ({notes.length})
                 </h3>
                 <div className="space-y-3 max-h-40 overflow-y-auto pr-2 custom-scrollbar">
                   {notes.map((note) => (
-                    <div key={note.id} className="bg-gray-800 rounded-lg p-3 border border-gray-600">
+                    <div key={note.id} className="glass-card rounded-lg p-3 border-0">
                       <p className="text-gray-300 text-sm mb-2">{note.note_text}</p>
                       <div className="flex items-center justify-between text-xs text-gray-400">
                         <div className="flex items-center gap-2">
@@ -212,7 +212,7 @@ export const ParameterDetailPopup: React.FC<ParameterDetailPopupProps> = ({
             )}
 
             {/* History Section */}
-            <div className="bg-gray-700 rounded-lg p-4">
+            <div className="glass-reminder-empty rounded-lg p-4">
               <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
                 <Clock className="w-5 h-5 text-green-400" />
                 Change History ({history.length})
@@ -222,7 +222,7 @@ export const ParameterDetailPopup: React.FC<ParameterDetailPopupProps> = ({
               ) : history.length > 0 ? (
                 <div className="space-y-3 max-h-80 overflow-y-auto pr-2 custom-scrollbar">
                   {history.map((entry) => (
-                    <div key={entry.id} className="bg-gray-800 rounded-lg p-3 border border-gray-600">
+                    <div key={entry.id} className="glass-card rounded-lg p-3 border-0">
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
                         <div className="flex items-center gap-2">
                           <Badge variant="outline" className="text-xs border-gray-500 text-gray-300 w-fit">

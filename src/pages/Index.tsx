@@ -13,6 +13,7 @@ import { useStatutoryParameters } from '@/hooks/useStatutoryParameters';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { Loader2 } from 'lucide-react';
 import { PARAMETER_CATEGORIES } from '@/lib/constants';
+import { ComplianceLiquidGauge } from '@/components/ComplianceLiquidGauge';
 
 const Index = () => {
   const { parameters, isLoading } = useStatutoryParameters();
@@ -165,29 +166,9 @@ const Index = () => {
             </div>
 
             {/* Compliance Score - responsive */}
-            <div className="lg:col-span-1 col-span-full">
-              <div className="bg-gray-800 p-4 rounded-lg shadow-lg border border-gray-700 h-full flex flex-col items-center justify-center">
-                <h3 className="text-sm font-semibold text-white mb-3 text-center">Compliance Score</h3>
-                <div className="relative w-20 h-20 lg:w-24 lg:h-24 flex items-center justify-center">
-                  <svg className="w-full h-full" viewBox="0 0 120 120">
-                    <circle cx="60" cy="60" r="50" fill="#23272f" stroke="#374151" strokeWidth="3" />
-                    <circle
-                      cx="60" cy="60" r="50"
-                      fill="none"
-                      stroke="#2563eb"
-                      strokeWidth="8"
-                      strokeDasharray={314.16}
-                      strokeDashoffset={314.16 * (1 - complianceFraction)}
-                      strokeLinecap="round"
-                      style={{ transition: 'stroke-dashoffset 1s cubic-bezier(.4,2,.6,1)' }}
-                    />
-                  </svg>
-                  <div className="absolute inset-0 flex flex-col items-center justify-center">
-                    <span className="text-xl lg:text-2xl font-bold text-blue-400">{complianceScore}%</span>
-                  </div>
-                </div>
-                <p className="text-gray-400 text-xs mt-2 text-center">Parameters currently valid</p>
-              </div>
+            <div className="lg:col-span-1 col-span-full flex flex-col items-center justify-center">
+              <ComplianceLiquidGauge percentage={complianceScore} width={120} height={120} />
+              <p className="text-gray-400 text-xs mt-2 text-center">Parameters currently valid</p>
             </div>
           </div>
 

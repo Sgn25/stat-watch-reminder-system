@@ -12,11 +12,29 @@ interface DashboardLayoutProps {
 
 export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   
   return (
     <div className="min-h-screen bg-gray-900 transition-smooth">
       {/* Desktop Sidebar */}
-      <Sidebar />
+      {sidebarOpen && (
+        <Sidebar onClose={() => setSidebarOpen(false)} />
+      )}
+      
+      {/* Desktop Hamburger Menu */}
+      <div className="hidden lg:flex items-center justify-between p-4 bg-gray-900 border-b border-gray-800">
+        <div className="flex items-center gap-4">
+          {!sidebarOpen && (
+            <button 
+              onClick={() => setSidebarOpen(true)} 
+              className="text-white p-2 hover:bg-gray-800 rounded-md transition-colors"
+            >
+              <Menu className="w-6 h-6" />
+            </button>
+          )}
+          <h1 className="text-xl font-bold text-white">StatMonitor</h1>
+        </div>
+      </div>
       
       {/* Mobile Hamburger + Drawer */}
       <div className="lg:hidden flex items-center justify-between p-4 bg-gray-900 border-b border-gray-800">
@@ -51,7 +69,7 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
         <h1 className="text-xl font-bold text-white">StatMonitor</h1>
       </div>
       
-      <div className="lg:pl-64 transition-smooth">
+      <div className={`transition-all duration-300 ${sidebarOpen ? 'lg:pl-64' : 'lg:pl-0'}`}>
         <main className="p-4 lg:p-6 bg-gray-900 min-h-screen smooth-scroll animate-fade-in pb-20 lg:pb-6">
           <div className="max-w-7xl mx-auto">
             {children}

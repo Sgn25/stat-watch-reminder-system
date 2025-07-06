@@ -83,7 +83,7 @@ const Reminders = () => {
                 onClick={handleTestEmail}
                 disabled={isTestingEmail}
                 variant="outline"
-                className="border-green-600 text-green-400 hover:bg-green-900/20"
+                className="border-green-600/50 text-green-400 hover:bg-green-900/20 backdrop-blur-sm"
               >
                 <Mail className="w-4 h-4 mr-2" />
                 {isTestingEmail ? 'Testing...' : 'Test Email'}
@@ -95,7 +95,7 @@ const Reminders = () => {
                     Add Reminder
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="sm:max-w-md bg-gray-800 border-gray-700">
+                <DialogContent className="sm:max-w-md">
                   <DialogHeader>
                     <DialogTitle className="text-white">Set New Reminder</DialogTitle>
                   </DialogHeader>
@@ -106,18 +106,18 @@ const Reminders = () => {
           </div>
 
           {reminders.length === 0 ? (
-            <div className="text-center py-12">
-              <Bell className="w-12 h-12 text-gray-600 mx-auto mb-4" />
+            <div className="text-center py-12 glass-card rounded-lg border-0">
+              <Bell className="w-12 h-12 text-gray-400 mx-auto mb-4" />
               <h3 className="text-lg font-medium text-white mb-2">No reminders set</h3>
-              <p className="text-gray-400">Add your first reminder to get email notifications</p>
+              <p className="text-gray-300">Add your first reminder to get email notifications</p>
             </div>
           ) : (
             <div className="space-y-6">
               {Object.values(remindersByParameter).map((group: any) => (
                 <div key={group.parameter?.id} className="space-y-4">
-                  <div className="border-b border-gray-700 pb-2">
+                  <div className="border-b border-gray-700/50 pb-2">
                     <h2 className="text-xl font-semibold text-white">{group.parameter?.name}</h2>
-                    <p className="text-gray-400 text-sm">
+                    <p className="text-gray-300 text-sm">
                       {group.parameter?.category} - {group.reminders.length} reminder(s) set
                     </p>
                   </div>
