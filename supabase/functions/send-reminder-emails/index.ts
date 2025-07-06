@@ -167,19 +167,60 @@ const handler = async (req: Request): Promise<Response> => {
             if (resendApiKey && resendFrom && authUser.user.email) {
               const terminology = getCategoryTerminology(reminder.statutory_parameters?.category || '');
               const emailSubject = `Reminder: ${reminder.statutory_parameters?.name} (${reminder.statutory_parameters?.category}) - ${reminder.reminder_date}`;
+              
+              // Format dates as DD/MM/YYYY
+              function formatDateDMY(dateStr) {
+                const d = new Date(dateStr);
+                return d.toLocaleDateString('en-GB');
+              }
+              const expiryDateDMY = formatDateDMY(reminder.statutory_parameters?.expiry_date);
+              const reminderDateDMY = formatDateDMY(reminder.reminder_date);
+              const daysUntilExpiry = Math.ceil((new Date(reminder.statutory_parameters?.expiry_date).getTime() - new Date(today).getTime()) / (1000 * 60 * 60 * 24));
+              
               const emailBody = `
-                <h2>${terminology.title}</h2>
-                <p>Hello ${userProfile.full_name || 'User'},</p>
-                <p>This is a reminder for your ${reminder.statutory_parameters?.category?.toLowerCase() || 'parameter'}:</p>
-                <ul>
-                  <li><strong>${reminder.statutory_parameters?.category || 'Parameter'}:</strong> ${reminder.statutory_parameters?.name}</li>
-                  <li><strong>Category:</strong> ${reminder.statutory_parameters?.category}</li>
-                  <li><strong>Expiry Date:</strong> ${reminder.statutory_parameters?.expiry_date}</li>
-                  <li><strong>Reminder Date:</strong> ${reminder.reminder_date}</li>
-                </ul>
-                ${reminder.custom_message ? `<p><strong>Custom Message:</strong> ${reminder.custom_message}</p>` : ''}
-                <p>Please take necessary action before the expiry date to maintain compliance.</p>
-                <p>Best regards,<br>StatMonitor - Your Compliance Partner</p>
+                <div style="font-family: Arial, sans-serif; background: #f7f9fb; padding: 0; margin: 0;">
+                  <div style="max-width: 600px; margin: 40px auto; background: #fff; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.07);">
+                    <div style="background: #059669; color: #fff; padding: 24px 0; text-align: center;">
+                      <div style="font-size: 28px; font-weight: bold;">${terminology.title}</div>
+                      <div style="font-size: 15px; margin-top: 4px;">StatMonitor - Your Compliance Partner</div>
+                    </div>
+                    <div style="padding: 32px 32px 24px 32px;">
+                      <div style="font-size: 17px; margin-bottom: 16px;">Hello, ${userProfile.full_name || 'User'},</div>
+                      <div style="background: #ecfdf5; color: #065f46; border-radius: 8px; padding: 16px; margin-bottom: 24px;">
+                        <div style="font-weight: bold; font-size: 16px; margin-bottom: 4px;">📅 Scheduled Reminder</div>
+                        <div>Your ${reminder.statutory_parameters?.category?.toLowerCase() || 'parameter'} <b>${reminder.statutory_parameters?.name}</b> reminder is due today</div>
+                      </div>
+                      <div style="background: #f1f5f9; border-radius: 8px; padding: 16px; margin-bottom: 24px;">
+                        <div style="font-weight: bold; font-size: 16px; margin-bottom: 8px;">📄 ${reminder.statutory_parameters?.category || 'Parameter'} Information</div>
+                        <div><b>${reminder.statutory_parameters?.category || 'Parameter'} Name:</b> ${reminder.statutory_parameters?.name}</div>
+                        <div><b>Category:</b> ${reminder.statutory_parameters?.category}</div>
+                        <div><b>Expiry Date:</b> ${expiryDateDMY}</div>
+                        <div><b>Reminder Date:</b> ${reminderDateDMY}</div>
+                        <div><b>Days Until Expiry:</b> ${daysUntilExpiry} days</div>
+                      </div>
+                      ${reminder.custom_message ? `
+                      <div style="background: #fef3c7; border-radius: 8px; padding: 16px; margin-bottom: 24px;">
+                        <div style="font-weight: bold; font-size: 15px; margin-bottom: 4px;">💬 Custom Message</div>
+                        <div>${reminder.custom_message}</div>
+                      </div>
+                      ` : ''}
+                      <div style="background: #e0edff; border-radius: 8px; padding: 16px; margin-bottom: 24px;">
+                        <div style="font-weight: bold; font-size: 15px; margin-bottom: 4px;">ℹ️ Action Required</div>
+                        <div>This ${reminder.statutory_parameters?.category?.toLowerCase() || 'parameter'} expires in <b>${daysUntilExpiry} days</b>. Please take necessary action before the expiry date to maintain compliance.</div>
+                      </div>
+                      <div style="text-align: center; margin-bottom: 24px;">
+                        <a href="#" style="background: #059669; color: #fff; padding: 12px 28px; border-radius: 6px; text-decoration: none; font-weight: bold; font-size: 16px;">${terminology.actionText}</a>
+                      </div>
+                      <div style="font-size: 14px; color: #374151;">${terminology.description}</div>
+                    </div>
+                    <div style="background: #f1f5f9; color: #64748b; font-size: 13px; text-align: center; padding: 18px 0;">
+                      This is an automated reminder from <b>StatMonitor</b><br>
+                      Need help? Contact your administrator or reply to this email.<br>
+                      © 2024 StatMonitor. All rights reserved.<br>
+                      <a href="#" style="color: #059669;">Unsubscribe from these emails</a>
+                    </div>
+                  </div>
+                </div>
               `;
 
               const emailResponse = await fetch('https://api.resend.com/emails', {
