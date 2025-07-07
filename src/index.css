@@ -1,4 +1,3 @@
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -381,8 +380,6 @@ table .glass-row td {
     inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
 
-/* Remove old dialog centering rules - now using glass-dialog-vista */
-
 /* Water wave animation for compliance score */
 @keyframes wave {
   0%, 100% {
@@ -580,23 +577,21 @@ table .glass-row td {
   -webkit-backdrop-filter: blur(8px) saturate(120%);
 }
 
-/* Dialog styling is now handled inline in components for better control */
-
-/* Ensure viewport is properly set up for dialog positioning */
+/* Enhanced dialog positioning and scroll handling */
 html, body {
   height: 100%;
   overflow-x: hidden;
 }
 
-/* Ensure dialogs are always visible */
-[data-radix-dialog-content] {
+/* Ensure body scroll lock works properly */
+body[data-dialog-open] {
+  overflow: hidden !important;
   position: fixed !important;
-  top: 50% !important;
-  left: 50% !important;
-  transform: translate(-50%, -50%) !important;
-  z-index: 9999 !important;
+  width: 100% !important;
+  top: calc(-1 * var(--dialog-scroll-top, 0px)) !important;
 }
 
+/* Dialog overlay positioning - always cover full viewport */
 [data-radix-dialog-overlay] {
   position: fixed !important;
   top: 0 !important;
@@ -604,6 +599,40 @@ html, body {
   right: 0 !important;
   bottom: 0 !important;
   z-index: 9998 !important;
+  background: rgba(0, 0, 0, 0.8) !important;
+  backdrop-filter: blur(4px) !important;
 }
 
-/* Form element styling is now handled inline in components for better control */
+/* Dialog content positioning - always center in viewport */
+[data-radix-dialog-content] {
+  position: fixed !important;
+  top: 50% !important;
+  left: 50% !important;
+  transform: translate(-50%, -50%) !important;
+  z-index: 9999 !important;
+  max-width: min(95vw, 800px) !important;
+  max-height: 95vh !important;
+  overflow-y: auto !important;
+  margin: 0 !important;
+}
+
+/* Ensure dialogs are always visible on mobile */
+@media (max-width: 640px) {
+  [data-radix-dialog-content] {
+    max-width: 95vw !important;
+    max-height: 90vh !important;
+    margin: 0 !important;
+    border-radius: 12px !important;
+  }
+}
+
+/* Prevent dialog content from being clipped */
+[data-radix-dialog-content] {
+  box-sizing: border-box !important;
+}
+
+/* Ensure proper stacking context for dialogs */
+[data-radix-dialog-overlay],
+[data-radix-dialog-content] {
+  isolation: isolate;
+}

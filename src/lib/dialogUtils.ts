@@ -17,6 +17,9 @@ export const lockBodyScroll = () => {
     document.body.style.overflow = 'hidden';
     document.body.style.paddingRight = `${scrollbarWidth}px`;
     document.body.setAttribute('data-dialog-open', 'true');
+    
+    // Ensure the dialog container is properly positioned
+    document.documentElement.style.setProperty('--dialog-scroll-top', `${window.scrollY}px`);
   }
 };
 
@@ -27,6 +30,7 @@ export const unlockBodyScroll = () => {
     document.body.style.overflow = originalOverflow || '';
     document.body.style.paddingRight = originalPaddingRight || '';
     document.body.removeAttribute('data-dialog-open');
+    document.documentElement.style.removeProperty('--dialog-scroll-top');
     originalOverflow = null;
     originalPaddingRight = null;
   }
@@ -37,6 +41,7 @@ export const resetBodyScroll = () => {
   document.body.style.overflow = originalOverflow || '';
   document.body.style.paddingRight = originalPaddingRight || '';
   document.body.removeAttribute('data-dialog-open');
+  document.documentElement.style.removeProperty('--dialog-scroll-top');
   originalOverflow = null;
   originalPaddingRight = null;
 };
@@ -50,4 +55,4 @@ export const cleanupBodyScroll = () => {
   if (scrollLockCount > 0) {
     resetBodyScroll();
   }
-}; 
+};
