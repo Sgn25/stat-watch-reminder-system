@@ -96,3 +96,24 @@ CREATE POLICY "Authenticated users can view dairy units"
 -- Enable realtime for dairy_units table
 ALTER TABLE public.dairy_units REPLICA IDENTITY FULL;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.dairy_units;
+
+-- FIX: Update handle_new_user to use raw_user_meta_data for dairy_unit_id
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER SET search_path = ''
+AS $$
+BEGIN
+  INSERT INTO public.profiles (id, full_name, dairy_unit_id)
+  VALUES (
+    new.id, 
+    new.raw_user_meta_data ->> 'full_name',
+    (new.raw_user_meta_data ->> 'dairy_unit_id')::uuid
+  );
+  
+  INSERT INTO public.reminder_settings (user_id)
+  VALUES (new.id);
+  
+  RETURN new;
+END;
+$$;

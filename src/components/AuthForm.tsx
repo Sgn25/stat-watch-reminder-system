@@ -47,6 +47,11 @@ export const AuthForm = () => {
     }
   };
 
+  const isValidUUID = (uuid: string) => {
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    return uuidRegex.test(uuid);
+  };
+
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -54,6 +59,15 @@ export const AuthForm = () => {
       toast({
         title: "Error",
         description: "Please select a dairy unit",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!isValidUUID(selectedDairyUnit)) {
+      toast({
+        title: "Error",
+        description: "Invalid dairy unit selected. Please try again.",
         variant: "destructive",
       });
       return;
@@ -81,11 +95,14 @@ export const AuthForm = () => {
         description: "Please check your email to verify your account.",
       });
     } catch (error: any) {
+      // Show the full error object if available
       toast({
         title: "Error",
-        description: error.message,
+        description: error?.message || JSON.stringify(error),
         variant: "destructive",
       });
+      // Optionally log error for debugging
+      // console.error('Signup error:', error);
     } finally {
       setLoading(false);
     }
