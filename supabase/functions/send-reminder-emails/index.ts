@@ -146,143 +146,132 @@ const handler = async (req: Request): Promise<Response> => {
           try {
             console.log(`Processing user reminder: ${reminder.id} for parameter: ${reminder.statutory_parameters?.name}`);
             
-            // Get user email from auth.users table
-            const { data: userProfile, error: profileError } = await supabase
+            // Get all users in the same dairy unit
+            const { data: dairyUnitUsers, error: usersError } = await supabase
               .from('profiles')
               .select('id, full_name')
-              .eq('id', reminder.user_id)
-              .single();
+              .eq('dairy_unit_id', reminder.dairy_unit_id);
 
-            // Get user email from auth.users table
-            const { data: authUser, error: authError } = await supabase.auth.admin.getUserById(reminder.user_id);
-
-            if (profileError || !userProfile || authError || !authUser) {
-              console.error(`Error fetching user data for reminder ${reminder.id}:`, profileError || authError);
+            if (usersError) {
+              console.error(`Error fetching users for dairy unit ${reminder.dairy_unit_id}:`, usersError);
               results.userReminders.errors++;
               continue;
             }
 
-            // Check if user is subscribed to email notifications
-            const { data: emailSubscription, error: subscriptionError } = await supabase
-              .from('email_subscriptions')
-              .select('is_subscribed')
-              .eq('user_id', reminder.user_id)
-              .eq('dairy_unit_id', reminder.dairy_unit_id)
-              .single();
+            for (const user of dairyUnitUsers || []) {
+              // Get user email from auth.users table
+              const { data: authUser, error: authError } = await supabase.auth.admin.getUserById(user.id);
 
-            if (subscriptionError && subscriptionError.code !== 'PGRST116') {
-              console.error(`Error checking email subscription for user ${reminder.user_id}:`, subscriptionError);
-            }
-
-            // Only send email if user is subscribed (only if a row exists and is_subscribed is true)
-            const isSubscribed = emailSubscription?.is_subscribed === true;
-            
-            if (!isSubscribed) {
-              console.log(`Skipping email for reminder ${reminder.id} - user ${reminder.user_id} is unsubscribed or no subscription row found`);
-              // Do NOT mark reminder as sent, so it can be sent again on next run
-              continue;
-            }
-
-            // Send email using Resend
-            if (resendApiKey && resendFrom && authUser.user.email) {
-              const terminology = getCategoryTerminology(reminder.statutory_parameters?.category || '');
-              const emailSubject = `Reminder: ${reminder.statutory_parameters?.name} (${reminder.statutory_parameters?.category}) - ${reminder.reminder_date}`;
-              
-              // Format dates as DD/MM/YYYY
-              function formatDateDMY(dateStr) {
-                const d = new Date(dateStr);
-                return d.toLocaleDateString('en-GB');
-              }
-              const expiryDateDMY = formatDateDMY(reminder.statutory_parameters?.expiry_date);
-              const reminderDateDMY = formatDateDMY(reminder.reminder_date);
-              const daysUntilExpiry = Math.ceil((new Date(reminder.statutory_parameters?.expiry_date).getTime() - new Date(today).getTime()) / (1000 * 60 * 60 * 24));
-              
-              const emailBody = `
-                <div style="font-family: Arial, sans-serif; background: #f7f9fb; padding: 0; margin: 0;">
-                  <div style="max-width: 600px; margin: 40px auto; background: #fff; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.07);">
-                    <div style="background: #059669; color: #fff; padding: 24px 0; text-align: center;">
-                      <div style="font-size: 28px; font-weight: bold;">${terminology.title}</div>
-                      <div style="font-size: 15px; margin-top: 4px;">StatMonitor - Your Compliance Partner</div>
-                    </div>
-                    <div style="padding: 32px 32px 24px 32px;">
-                      <div style="font-size: 17px; margin-bottom: 16px;">Hello, ${userProfile.full_name || 'User'},</div>
-                      <div style="background: #ecfdf5; color: #065f46; border-radius: 8px; padding: 16px; margin-bottom: 24px;">
-                        <div style="font-weight: bold; font-size: 16px; margin-bottom: 4px;">📅 Scheduled Reminder</div>
-                        <div>Your ${reminder.statutory_parameters?.category?.toLowerCase() || 'parameter'} <b>${reminder.statutory_parameters?.name}</b> reminder is due today</div>
-                      </div>
-                      <div style="background: #f1f5f9; border-radius: 8px; padding: 16px; margin-bottom: 24px;">
-                        <div style="font-weight: bold; font-size: 16px; margin-bottom: 8px;">📄 ${reminder.statutory_parameters?.category || 'Parameter'} Information</div>
-                        <div><b>${reminder.statutory_parameters?.category || 'Parameter'} Name:</b> ${reminder.statutory_parameters?.name}</div>
-                        <div><b>Category:</b> ${reminder.statutory_parameters?.category}</div>
-                        <div><b>Expiry Date:</b> ${expiryDateDMY}</div>
-                        <div><b>Reminder Date:</b> ${reminderDateDMY}</div>
-                        <div><b>Days Until Expiry:</b> ${daysUntilExpiry} days</div>
-                      </div>
-                      ${reminder.custom_message ? `
-                      <div style="background: #fef3c7; border-radius: 8px; padding: 16px; margin-bottom: 24px;">
-                        <div style="font-weight: bold; font-size: 15px; margin-bottom: 4px;">💬 Custom Message</div>
-                        <div>${reminder.custom_message}</div>
-                      </div>
-                      ` : ''}
-                      <div style="background: #e0edff; border-radius: 8px; padding: 16px; margin-bottom: 24px;">
-                        <div style="font-weight: bold; font-size: 15px; margin-bottom: 4px;">ℹ️ Action Required</div>
-                        <div>This ${reminder.statutory_parameters?.category?.toLowerCase() || 'parameter'} expires in <b>${daysUntilExpiry} days</b>. Please take necessary action before the expiry date to maintain compliance.</div>
-                      </div>
-                      <div style="text-align: center; margin-bottom: 24px;">
-                        <a href="#" style="background: #059669; color: #fff; padding: 12px 28px; border-radius: 6px; text-decoration: none; font-weight: bold; font-size: 16px;">${terminology.actionText}</a>
-                      </div>
-                      <div style="font-size: 14px; color: #374151;">${terminology.description}</div>
-                    </div>
-                    <div style="background: #f1f5f9; color: #64748b; font-size: 13px; text-align: center; padding: 18px 0;">
-                      This is an automated reminder from <b>StatMonitor</b><br>
-                      Need help? Contact your administrator or reply to this email.<br>
-                      © 2024 StatMonitor. All rights reserved.<br>
-                      <a href="#" style="color: #059669;">Unsubscribe from these emails</a>
-                    </div>
-                  </div>
-                </div>
-              `;
-
-              const emailResponse = await fetch('https://api.resend.com/emails', {
-                method: 'POST',
-                headers: {
-                  'Authorization': `Bearer ${resendApiKey}`,
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                  from: resendFrom,
-                  to: authUser.user.email,
-                  subject: emailSubject,
-                  html: emailBody,
-                }),
-              });
-
-              if (!emailResponse.ok) {
-                const errorText = await emailResponse.text();
-                console.error(`Failed to send email for reminder ${reminder.id}:`, errorText);
-                results.userReminders.errors++;
+              if (authError || !authUser?.user?.email) {
+                console.log(`Skipping user reminder email for reminder ${reminder.id} to ${user.id} - missing user email`);
                 continue;
               }
 
-              console.log(`Email sent successfully for reminder ${reminder.id} to ${authUser.user.email}`);
-            } else {
-              console.log(`Skipping email for reminder ${reminder.id} - missing email configuration or user email`);
-            }
-            
-            // After sending email, do NOT update is_sent to true
-            // const { error: updateError } = await supabase
-            //   .from('reminders')
-            //   .update({ is_sent: true, updated_at: new Date().toISOString() })
-            //   .eq('id', reminder.id);
+              // Check if user is subscribed to email notifications
+              const { data: emailSubscription, error: subscriptionError } = await supabase
+                .from('email_subscriptions')
+                .select('is_subscribed')
+                .eq('user_id', user.id)
+                .eq('dairy_unit_id', reminder.dairy_unit_id)
+                .single();
 
-            // if (updateError) {
-            //   console.error(`Error updating reminder ${reminder.id}:`, updateError);
-            //   results.userReminders.errors++;
-            // } else {
-            //   console.log(`Successfully processed user reminder: ${reminder.id}`);
-            //   results.userReminders.sent++;
-            //   emailsSent++;
-            // }
+              if (subscriptionError && subscriptionError.code !== 'PGRST116') {
+                console.error(`Error checking email subscription for user ${user.id}:`, subscriptionError);
+              }
+
+              // Only send email if user is subscribed (only if a row exists and is_subscribed is true)
+              const isSubscribed = emailSubscription?.is_subscribed === true;
+              if (!isSubscribed) {
+                console.log(`Skipping user reminder email for reminder ${reminder.id} to ${user.id} - user is unsubscribed or no subscription row found`);
+                continue;
+              }
+
+              // Send email using Resend
+              if (resendApiKey && resendFrom && authUser.user.email) {
+                const terminology = getCategoryTerminology(reminder.statutory_parameters?.category || '');
+                const emailSubject = `Reminder: ${reminder.statutory_parameters?.name} (${reminder.statutory_parameters?.category}) - ${reminder.reminder_date}`;
+                
+                // Format dates as DD/MM/YYYY
+                function formatDateDMY(dateStr) {
+                  const d = new Date(dateStr);
+                  return d.toLocaleDateString('en-GB');
+                }
+                const expiryDateDMY = formatDateDMY(reminder.statutory_parameters?.expiry_date);
+                const reminderDateDMY = formatDateDMY(reminder.reminder_date);
+                const daysUntilExpiry = Math.ceil((new Date(reminder.statutory_parameters?.expiry_date).getTime() - new Date(today).getTime()) / (1000 * 60 * 60 * 24));
+                
+                const emailBody = `
+                  <div style="font-family: Arial, sans-serif; background: #f7f9fb; padding: 0; margin: 0;">
+                    <div style="max-width: 600px; margin: 40px auto; background: #fff; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.07);">
+                      <div style="background: #059669; color: #fff; padding: 24px 0; text-align: center;">
+                        <div style="font-size: 28px; font-weight: bold;">${terminology.title}</div>
+                        <div style="font-size: 15px; margin-top: 4px;">StatMonitor - Your Compliance Partner</div>
+                      </div>
+                      <div style="padding: 32px 32px 24px 32px;">
+                        <div style="font-size: 17px; margin-bottom: 16px;">Hello, ${user.full_name || 'User'},</div>
+                        <div style="background: #ecfdf5; color: #065f46; border-radius: 8px; padding: 16px; margin-bottom: 24px;">
+                          <div style="font-weight: bold; font-size: 16px; margin-bottom: 4px;">📅 Scheduled Reminder</div>
+                          <div>Your ${reminder.statutory_parameters?.category?.toLowerCase() || 'parameter'} <b>${reminder.statutory_parameters?.name}</b> reminder is due today</div>
+                        </div>
+                        <div style="background: #f1f5f9; border-radius: 8px; padding: 16px; margin-bottom: 24px;">
+                          <div style="font-weight: bold; font-size: 16px; margin-bottom: 8px;">📄 ${reminder.statutory_parameters?.category || 'Parameter'} Information</div>
+                          <div><b>${reminder.statutory_parameters?.category || 'Parameter'} Name:</b> ${reminder.statutory_parameters?.name}</div>
+                          <div><b>Category:</b> ${reminder.statutory_parameters?.category}</div>
+                          <div><b>Expiry Date:</b> ${expiryDateDMY}</div>
+                          <div><b>Reminder Date:</b> ${reminderDateDMY}</div>
+                          <div><b>Days Until Expiry:</b> ${daysUntilExpiry} days</div>
+                        </div>
+                        ${reminder.custom_message ? `
+                        <div style="background: #fef3c7; border-radius: 8px; padding: 16px; margin-bottom: 24px;">
+                          <div style="font-weight: bold; font-size: 15px; margin-bottom: 4px;">💬 Custom Message</div>
+                          <div>${reminder.custom_message}</div>
+                        </div>
+                        ` : ''}
+                        <div style="background: #e0edff; border-radius: 8px; padding: 16px; margin-bottom: 24px;">
+                          <div style="font-weight: bold; font-size: 15px; margin-bottom: 4px;">ℹ️ Action Required</div>
+                          <div>This ${reminder.statutory_parameters?.category?.toLowerCase() || 'parameter'} expires in <b>${daysUntilExpiry} days</b>. Please take necessary action before the expiry date to maintain compliance.</div>
+                        </div>
+                        <div style="text-align: center; margin-bottom: 24px;">
+                          <a href="#" style="background: #059669; color: #fff; padding: 12px 28px; border-radius: 6px; text-decoration: none; font-weight: bold; font-size: 16px;">${terminology.actionText}</a>
+                        </div>
+                        <div style="font-size: 14px; color: #374151;">${terminology.description}</div>
+                      </div>
+                      <div style="background: #f1f5f9; color: #64748b; font-size: 13px; text-align: center; padding: 18px 0;">
+                        This is an automated reminder from <b>StatMonitor</b><br>
+                        Need help? Contact your administrator or reply to this email.<br>
+                        © 2024 StatMonitor. All rights reserved.<br>
+                        <a href="#" style="color: #059669;">Unsubscribe from these emails</a>
+                      </div>
+                    </div>
+                  </div>
+                `;
+
+                const emailResponse = await fetch('https://api.resend.com/emails', {
+                  method: 'POST',
+                  headers: {
+                    'Authorization': `Bearer ${resendApiKey}`,
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify({
+                    from: resendFrom,
+                    to: authUser.user.email,
+                    subject: emailSubject,
+                    html: emailBody,
+                  }),
+                });
+
+                if (!emailResponse.ok) {
+                  const errorText = await emailResponse.text();
+                  console.error(`Failed to send user reminder email for reminder ${reminder.id} to ${authUser.user.email}:`, errorText);
+                  results.userReminders.errors++;
+                  continue;
+                }
+
+                console.log(`User reminder email sent successfully for reminder ${reminder.id} to ${authUser.user.email}`);
+              } else {
+                console.log(`Skipping user reminder email for reminder ${reminder.id} to ${authUser?.user?.email || user.id} - missing email configuration`);
+              }
+            }
           } catch (error) {
             console.error(`Error processing user reminder ${reminder.id}:`, error);
             results.userReminders.errors++;

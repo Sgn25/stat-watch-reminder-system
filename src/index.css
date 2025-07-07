@@ -108,7 +108,7 @@ All colors MUST be HSL.
   body, #root {
     @apply bg-gray-900 text-foreground;
     transition: background-color 0.3s ease, color 0.3s ease;
-    background: url('/app-bg.jpg') center center / cover no-repeat fixed !important;
+    background: url('/app-bg.jpg') center center / cover no-repeat !important;
     background-color: #0a101a !important;
     min-height: 100vh;
   }
@@ -580,25 +580,30 @@ table .glass-row td {
   -webkit-backdrop-filter: blur(8px) saturate(120%);
 }
 
-/* Sidebar border and card border remain for separation */
+/* Dialog styling is now handled inline in components for better control */
 
-/* Remove global dialog centering overrides */
-
-/* Remove all custom dialog styling - restore to original state */
-
-.dialog-content-fix {
-  background: #18181b !important;
-  color: #fff !important;
-  border-radius: 0.75rem !important;
-  border: 1px solid #333 !important;
-  box-shadow: 0 8px 32px 0 rgba(0,0,0,0.37);
-  z-index: 9999 !important;
-  position: fixed !important;
-  left: 50% !important;
-  top: 50% !important;
-  transform: translate(-50%, -50%) !important;
-  max-width: 90vw !important;
-  max-height: 90vh !important;
-  overflow-y: auto !important;
-  padding: 2rem !important;
+/* Ensure viewport is properly set up for dialog positioning */
+html, body {
+  height: 100%;
+  overflow-x: hidden;
 }
+
+/* Ensure dialogs are always visible */
+[data-radix-dialog-content] {
+  position: fixed !important;
+  top: 50% !important;
+  left: 50% !important;
+  transform: translate(-50%, -50%) !important;
+  z-index: 9999 !important;
+}
+
+[data-radix-dialog-overlay] {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  z-index: 9998 !important;
+}
+
+/* Form element styling is now handled inline in components for better control */

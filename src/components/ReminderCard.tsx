@@ -115,7 +115,7 @@ export const ReminderCard = ({ reminder }: ReminderCardProps) => {
       </Card>
 
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md flex flex-col">
           <DialogHeader>
             <DialogTitle className="text-white">Edit Reminder</DialogTitle>
           </DialogHeader>

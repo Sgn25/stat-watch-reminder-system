@@ -80,7 +80,7 @@ export const ParameterDetailPopup: React.FC<ParameterDetailPopupProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-3xl max-h-[95vh] text-white overflow-hidden flex flex-col">
+      <DialogContent className="max-w-3xl max-h-[95vh] text-white flex flex-col">
         <DialogHeader className="flex-shrink-0">
           <div className="flex items-center justify-between">
             <DialogTitle className="text-xl font-bold text-white pr-8">{parameter.name}</DialogTitle>
@@ -93,7 +93,7 @@ export const ParameterDetailPopup: React.FC<ParameterDetailPopupProps> = ({
           </div>
         </DialogHeader>
         
-        <div className="flex-1 overflow-y-auto">
+        <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
           <div className="space-y-6 pr-2">
             {/* Parameter Details */}
             <div className="glass-reminder-empty rounded-lg p-4 space-y-4">

@@ -95,11 +95,13 @@ const Reminders = () => {
                     Add Reminder
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="sm:max-w-md">
+                <DialogContent className="sm:max-w-md flex flex-col">
                   <DialogHeader>
                     <DialogTitle className="text-white">Set New Reminder</DialogTitle>
                   </DialogHeader>
-                  <AddReminderForm onClose={() => setIsAddDialogOpen(false)} />
+                  <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
+                    <AddReminderForm onClose={() => setIsAddDialogOpen(false)} />
+                  </div>
                 </DialogContent>
               </Dialog>
             </div>

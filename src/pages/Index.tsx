@@ -102,11 +102,13 @@ const Index = () => {
                   Add Parameter
                 </Button>
               </DialogTrigger>
-              <DialogContent className="sm:max-w-md bg-gray-800 border-gray-700 mx-4 max-h-[90vh] overflow-y-auto">
+              <DialogContent className="sm:max-w-md bg-gray-800 border-gray-700 mx-4 max-h-[90vh] flex flex-col">
                 <DialogHeader>
                   <DialogTitle className="text-white">Add New Statutory Parameter</DialogTitle>
                 </DialogHeader>
-                <AddParameterForm onClose={() => setIsAddDialogOpen(false)} />
+                <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
+                  <AddParameterForm onClose={() => setIsAddDialogOpen(false)} />
+                </div>
               </DialogContent>
             </Dialog>
           </div>

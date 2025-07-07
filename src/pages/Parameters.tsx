@@ -75,7 +75,7 @@ const Parameters = () => {
                   Add Parameter
                 </Button>
               </DialogTrigger>
-                              <DialogContent className="sm:max-w-md">
+              <DialogContent className="sm:max-w-md flex flex-col">
                 <DialogHeader>
                   <DialogTitle className="text-white">Add New Parameter</DialogTitle>
                 </DialogHeader>
@@ -153,7 +153,7 @@ const Parameters = () => {
 
           {/* Parameter Detail Dialog */}
           <Dialog open={isDetailOpen} onOpenChange={setIsDetailOpen}>
-            <DialogContent className="sm:max-w-lg">
+            <DialogContent className="sm:max-w-lg flex flex-col">
               <DialogHeader>
                 <DialogTitle className="text-white">Parameter Details</DialogTitle>
               </DialogHeader>

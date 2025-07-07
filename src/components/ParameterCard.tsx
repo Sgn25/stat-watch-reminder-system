@@ -318,7 +318,7 @@ export const ParameterCard = ({ parameter, viewMode = 'grid' }: ParameterCardPro
         </div>
       )}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent>
+        <DialogContent className="flex flex-col">
           <DialogHeader>
             <DialogTitle className="text-white">Edit Parameter</DialogTitle>
           </DialogHeader>
@@ -338,7 +338,7 @@ export const ParameterCard = ({ parameter, viewMode = 'grid' }: ParameterCardPro
       
       {/* Add Reminder Dialog */}
       <Dialog open={isAddReminderDialogOpen} onOpenChange={setIsAddReminderDialogOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md flex flex-col">
           <DialogHeader>
             <DialogTitle className="text-white">Set Reminder for {parameter.name}</DialogTitle>
           </DialogHeader>
