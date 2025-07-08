@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useEffect } from 'react';
+import { Database } from '@/integrations/supabase/types';
 
 export interface ParameterHistory {
   id: string;
@@ -37,7 +38,7 @@ export const useParameterHistory = (parameterId: string) => {
       console.log('Fetching parameter history for:', parameterId);
       
       const { data: rawHistory, error: rawError } = await supabase
-        .from('parameter_history')
+        .from<'parameter_history_detailed_view', Database['public']['Views']['parameter_history_detailed_view']['Row']>('parameter_history_detailed_view')
         .select('*')
         .eq('parameter_id', parameterId)
         .order('created_at', { ascending: false });

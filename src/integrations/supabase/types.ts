@@ -353,7 +353,22 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      parameter_history_detailed_view: {
+        Row: {
+          id: string;
+          parameter_id: string;
+          user_id: string;
+          action: string;
+          field_name: string | null;
+          old_value: string | null;
+          new_value: string | null;
+          created_at: string;
+          user_name?: string;
+          parameter_name?: string;
+          parameter_category?: string;
+          dairy_unit_name?: string;
+        }
+      }
     }
     Functions: {
       debug_dairy_unit_data: {

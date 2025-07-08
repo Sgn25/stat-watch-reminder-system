@@ -5,15 +5,14 @@ import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { useReminders } from '@/hooks/useReminders';
 import { Button } from '@/components/ui/button';
 import { Bell, Plus, Mail } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { AddReminderForm } from '@/components/AddReminderForm';
-import { ReminderCard } from '@/components/ReminderCard';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { ReminderCard } from '@/components/ReminderCard';
 
 const Reminders = () => {
   const { reminders, isLoading } = useReminders();
-  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const navigate = useNavigate();
   const [isTestingEmail, setIsTestingEmail] = useState(false);
   const { toast } = useToast();
 
@@ -88,22 +87,10 @@ const Reminders = () => {
                 <Mail className="w-4 h-4 mr-2" />
                 {isTestingEmail ? 'Testing...' : 'Test Email'}
               </Button>
-              <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button className="bg-blue-600 hover:bg-blue-700">
-                    <Plus className="w-4 h-4 mr-2" />
-                    Add Reminder
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-md flex flex-col">
-                  <DialogHeader>
-                    <DialogTitle className="text-white">Set New Reminder</DialogTitle>
-                  </DialogHeader>
-                  <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
-                    <AddReminderForm onClose={() => setIsAddDialogOpen(false)} />
-                  </div>
-                </DialogContent>
-              </Dialog>
+              <Button className="bg-blue-600 hover:bg-blue-700" onClick={() => navigate('/reminders/add')}>
+                <Plus className="w-4 h-4 mr-2" />
+                Set Reminder
+              </Button>
             </div>
           </div>
 

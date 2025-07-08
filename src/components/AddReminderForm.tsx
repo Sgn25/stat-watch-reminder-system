@@ -10,6 +10,7 @@ import { Loader2 } from 'lucide-react';
 
 interface AddReminderFormProps {
   onClose: () => void;
+  parameterId?: string;
 }
 
 // Utility for display
@@ -19,11 +20,11 @@ function toDisplayDate(isoDate: string) {
   return `${day}/${month}/${year}`;
 }
 
-export const AddReminderForm = ({ onClose }: AddReminderFormProps) => {
+export const AddReminderForm = ({ onClose, parameterId }: AddReminderFormProps) => {
   const { parameters } = useStatutoryParameters();
   const { addReminder, isAddingReminder } = useReminders();
   const [formData, setFormData] = useState({
-    parameter_id: '',
+    parameter_id: parameterId || '',
     reminder_date: '',
     reminder_time: '',
     custom_message: '',
@@ -43,7 +44,7 @@ export const AddReminderForm = ({ onClose }: AddReminderFormProps) => {
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
         <Label htmlFor="parameter" className="text-gray-300">Parameter</Label>
-        <Select value={formData.parameter_id} onValueChange={(value) => handleChange('parameter_id', value)}>
+        <Select value={formData.parameter_id} onValueChange={(value) => handleChange('parameter_id', value)} disabled={!!parameterId}>
           <SelectTrigger className="bg-gray-700/50 border-gray-600/50 text-white backdrop-blur-sm">
             <SelectValue placeholder="Select parameter" />
           </SelectTrigger>

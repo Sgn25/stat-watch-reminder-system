@@ -8,7 +8,7 @@ import { CategoryFilter } from '@/components/CategoryFilter';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { Button } from '@/components/ui/button';
 import { Plus, LayoutDashboard, FileText, Bell, Building2, LayoutGrid, List as ListIcon } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { useNavigate } from 'react-router-dom';
 import { useStatutoryParameters } from '@/hooks/useStatutoryParameters';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { Loader2 } from 'lucide-react';
@@ -21,8 +21,8 @@ const Index = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [selectedStatus, setSelectedStatus] = useState<'all' | 'valid' | 'warning' | 'expired'>('all');
-  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const navigate = useNavigate();
 
   const categories = ['All', ...PARAMETER_CATEGORIES];
 
@@ -52,7 +52,7 @@ const Index = () => {
   };
 
   const getStatusCardStyle = (status: 'all' | 'valid' | 'warning' | 'expired') => {
-    const baseStyle = "bg-gray-800 p-4 lg:p-6 rounded-lg shadow-lg border border-gray-700 hover:shadow-xl transition-all duration-200 cursor-pointer";
+    const baseStyle = "group bg-gray-800 p-4 lg:p-6 rounded-lg shadow-lg border border-gray-700 hover:shadow-xl transition-all duration-200 cursor-pointer";
     const isSelected = selectedStatus === status;
     
     if (isSelected) {
@@ -64,7 +64,14 @@ const Index = () => {
         default: return baseStyle;
       }
     }
-    return baseStyle;
+    // Not selected: apply ring on hover
+    switch (status) {
+      case 'all': return `${baseStyle} hover:ring-2 hover:ring-blue-400 hover:ring-opacity-50`;
+      case 'valid': return `${baseStyle} hover:ring-2 hover:ring-green-400 hover:ring-opacity-50`;
+      case 'warning': return `${baseStyle} hover:ring-2 hover:ring-amber-400 hover:ring-opacity-50`;
+      case 'expired': return `${baseStyle} hover:ring-2 hover:ring-red-400 hover:ring-opacity-50`;
+      default: return baseStyle;
+    }
   };
 
   if (isLoading) {
@@ -95,28 +102,16 @@ const Index = () => {
               </div>
               <p className="text-gray-400 mt-1 text-sm lg:text-base">Monitor and manage your dairy unit's statutory parameters</p>
             </div>
-            <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-              <DialogTrigger asChild>
-                <Button className="bg-blue-600 hover:bg-blue-700 text-white shadow-lg transition-all duration-200 hover:shadow-blue-500/25 w-full sm:w-auto">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Parameter
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-md bg-gray-800 border-gray-700 mx-4 max-h-[90vh] flex flex-col">
-                <DialogHeader>
-                  <DialogTitle className="text-white">Add New Statutory Parameter</DialogTitle>
-                </DialogHeader>
-                <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
-                  <AddParameterForm onClose={() => setIsAddDialogOpen(false)} />
-                </div>
-              </DialogContent>
-            </Dialog>
+            <Button className="bg-blue-600 hover:bg-blue-700 text-white shadow-lg transition-all duration-200 hover:shadow-blue-500/25 w-full sm:w-auto" onClick={() => navigate('/parameters/add')}>
+              <Plus className="w-4 h-4 mr-2" />
+              Add Parameter
+            </Button>
           </div>
 
           {/* Status Overview Cards and Compliance Score */}
-          <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-5">
             {/* Status Cards - responsive grid */}
-            <div className="lg:col-span-4 grid grid-cols-2 lg:grid-cols-4 gap-2 lg:gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:col-span-4 lg:grid-cols-4 gap-2 lg:gap-4">
               <div 
                 className={getStatusCardStyle('all')}
                 onClick={() => handleStatusFilter('all')}
@@ -168,8 +163,8 @@ const Index = () => {
             </div>
 
             {/* Compliance Score - responsive */}
-            <div className="lg:col-span-1 col-span-full flex flex-col items-center justify-center">
-              <ComplianceLiquidGauge percentage={complianceScore} width={120} height={120} />
+            <div className="col-span-full lg:col-span-1 flex flex-col items-center justify-center mt-4 lg:mt-0">
+              <ComplianceLiquidGauge percentage={complianceScore} width={100} height={100} />
               <p className="text-gray-400 text-xs mt-2 text-center">Parameters currently valid</p>
             </div>
           </div>
@@ -208,7 +203,7 @@ const Index = () => {
 
           {/* Parameters Grid/List */}
           {viewMode === 'grid' ? (
-            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-6">
               {filteredParameters.map(parameter => (
                 <ParameterCard key={parameter.id} parameter={parameter} />
               ))}

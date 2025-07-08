@@ -6,7 +6,7 @@ import { useUserProfile } from '@/hooks/useUserProfile';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { UserInfoDisplay } from '@/components/UserInfoDisplay';
-import { NavLink } from 'react-router-dom';
+import { NavLink, Link } from 'react-router-dom';
 
 interface SidebarProps {
   mobile?: boolean;
@@ -46,7 +46,7 @@ export const Sidebar = ({ mobile = false, onNavigate, onClose }: SidebarProps) =
           <div className="flex h-16 shrink-0 items-center justify-between">
             <div className="flex items-center gap-2">
               <Building2 className="w-8 h-8 text-blue-400 animate-pulse" />
-              <h1 className="text-xl font-bold text-white">StatMonitor</h1>
+              <Link to="/" className="text-xl font-bold text-white hover:text-blue-400 transition-colors">StatMonitor</Link>
             </div>
             {onClose && (
               <button

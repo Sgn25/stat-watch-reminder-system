@@ -7,9 +7,9 @@ import { useStatutoryParameters } from '@/hooks/useStatutoryParameters';
 import { EditParameterForm } from '@/components/EditParameterForm';
 import { formatDate } from '@/lib/dateUtils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { ParameterDetailPopup } from '@/components/ParameterDetailPopup';
-import { useParameterReminders } from '@/hooks/useParameterReminders';
+import { useNavigate } from 'react-router-dom';
 import { AddParameterReminderForm } from '@/components/AddParameterReminderForm';
+import { useParameterReminders } from '@/hooks/useParameterReminders';
 
 interface ParameterCardProps {
   parameter: StatutoryParameter;
@@ -83,9 +83,7 @@ function getDaysRemainingText(daysUntilExpiry: number): { text: string; color: s
 
 export const ParameterCard = ({ parameter, viewMode = 'grid' }: ParameterCardProps) => {
   const { deleteParameter, isDeletingParameter } = useStatutoryParameters();
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [isDetailPopupOpen, setIsDetailPopupOpen] = useState(false);
-  const [isAddReminderDialogOpen, setIsAddReminderDialogOpen] = useState(false);
+  const navigate = useNavigate();
   const { reminders, isLoading: isLoadingReminders } = useParameterReminders(parameter.id);
 
   const badge = getStatusAndBadge(parameter.daysUntilExpiry);
@@ -106,7 +104,7 @@ export const ParameterCard = ({ parameter, viewMode = 'grid' }: ParameterCardPro
       {viewMode === 'grid' ? (
         <div
           className="glass-card rounded-lg p-6 relative flex flex-col min-h-[260px] cursor-pointer group"
-          onClick={() => setIsDetailPopupOpen(true)}
+          onClick={() => navigate(`/parameters/${parameter.id}`)}
           tabIndex={0}
           role="button"
           aria-label={`View details for ${parameter.name}`}
@@ -175,7 +173,7 @@ export const ParameterCard = ({ parameter, viewMode = 'grid' }: ParameterCardPro
                   className="glass-reminder-empty rounded-lg p-3 cursor-pointer transition-all duration-200"
                   onClick={(e) => {
                     e.stopPropagation();
-                    setIsAddReminderDialogOpen(true);
+                    navigate(`/parameters/${parameter.id}/reminders/add`);
                   }}
                 >
                   <div className="flex items-center gap-2">
@@ -197,7 +195,7 @@ export const ParameterCard = ({ parameter, viewMode = 'grid' }: ParameterCardPro
                       size="icon"
                       variant="ghost"
                       className="text-blue-400 hover:bg-blue-900/50 hover:text-blue-300 focus:ring-2 focus:ring-blue-400/50"
-                      onClick={() => setIsEditDialogOpen(true)}
+                      onClick={() => navigate(`/parameters/${parameter.id}/edit`)}
                       aria-label="Edit Parameter"
                     >
                       <Edit className="w-5 h-5" />
@@ -227,7 +225,7 @@ export const ParameterCard = ({ parameter, viewMode = 'grid' }: ParameterCardPro
       ) : (
         <div
           className="flex items-center px-6 py-4 glass-row hover:border-blue-500 transition-colors cursor-pointer group rounded-md"
-          onClick={() => setIsDetailPopupOpen(true)}
+          onClick={() => navigate(`/parameters/${parameter.id}`)}
           tabIndex={0}
           role="button"
           aria-label={`View details for ${parameter.name}`}
@@ -273,7 +271,7 @@ export const ParameterCard = ({ parameter, viewMode = 'grid' }: ParameterCardPro
                     className="text-xs text-gray-400 cursor-pointer hover:text-gray-300 transition-colors"
                     onClick={(e) => {
                       e.stopPropagation();
-                      setIsAddReminderDialogOpen(true);
+                      navigate(`/parameters/${parameter.id}/reminders/add`);
                     }}
                   >
                     No reminders
@@ -290,7 +288,7 @@ export const ParameterCard = ({ parameter, viewMode = 'grid' }: ParameterCardPro
                     size="icon"
                     variant="ghost"
                     className="text-blue-400 hover:bg-blue-900/50 hover:text-blue-300 focus:ring-2 focus:ring-blue-400/50"
-                    onClick={() => setIsEditDialogOpen(true)}
+                    onClick={() => navigate(`/parameters/${parameter.id}/edit`)}
                     aria-label="Edit Parameter"
                   >
                     <Edit className="w-5 h-5" />
@@ -317,37 +315,7 @@ export const ParameterCard = ({ parameter, viewMode = 'grid' }: ParameterCardPro
           </div>
         </div>
       )}
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="flex flex-col">
-          <DialogHeader>
-            <DialogTitle className="text-white">Edit Parameter</DialogTitle>
-          </DialogHeader>
-          <EditParameterForm parameter={parameter} onClose={() => setIsEditDialogOpen(false)} />
-        </DialogContent>
-      </Dialog>
-      {/* Parameter Detail Popup */}
-      <ParameterDetailPopup
-        parameter={parameter}
-        isOpen={isDetailPopupOpen}
-        onClose={() => setIsDetailPopupOpen(false)}
-        onEdit={(parameter) => {
-          setIsDetailPopupOpen(false);
-          setIsEditDialogOpen(true);
-        }}
-      />
       
-      {/* Add Reminder Dialog */}
-      <Dialog open={isAddReminderDialogOpen} onOpenChange={setIsAddReminderDialogOpen}>
-        <DialogContent className="sm:max-w-md flex flex-col">
-          <DialogHeader>
-            <DialogTitle className="text-white">Set Reminder for {parameter.name}</DialogTitle>
-          </DialogHeader>
-          <AddParameterReminderForm 
-            parameter={parameter} 
-            onClose={() => setIsAddReminderDialogOpen(false)} 
-          />
-        </DialogContent>
-      </Dialog>
     </>
   );
 };

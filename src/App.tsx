@@ -13,6 +13,11 @@ import CalendarPage from "./pages/Calendar";
 import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
 import React from "react";
+import ParameterDetailPage from "./pages/ParameterDetailPage";
+import AddParameterPage from "./pages/AddParameterPage";
+import AddReminderPage from "./pages/AddReminderPage";
+import EditParameterPage from "./pages/EditParameterPage";
+import EditReminderPage from "./pages/EditReminderPage";
 
 const queryClient = new QueryClient();
 
@@ -32,7 +37,13 @@ const App = () => {
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/parameters" element={<Parameters />} />
+              <Route path="/parameters/:id" element={<ParameterDetailPage />} />
+              <Route path="/parameters/add" element={<AddParameterPage />} />
+              <Route path="/parameters/:id/edit" element={<EditParameterPage />} />
+              <Route path="/parameters/:parameterId/reminders/add" element={<AddReminderPage />} />
               <Route path="/reminders" element={<Reminders />} />
+              <Route path="/reminders/add" element={<AddReminderPage />} />
+              <Route path="/reminders/:reminderId/edit" element={<EditReminderPage />} />
               <Route path="/calendar" element={<CalendarPage />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="*" element={<NotFound />} />

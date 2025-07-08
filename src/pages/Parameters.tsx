@@ -4,13 +4,12 @@ import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { useStatutoryParameters } from '@/hooks/useStatutoryParameters';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Eye, Edit, Trash2, Plus, Search } from 'lucide-react';
+import { Edit, Trash2, Plus, Search } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { AddParameterForm } from '@/components/AddParameterForm';
 import { Loader2 } from 'lucide-react';
 import { formatDate } from '@/lib/dateUtils';
+import { useNavigate } from 'react-router-dom';
 
 // Utility for display
 function toDisplayDate(isoDate: string) {
@@ -22,9 +21,7 @@ function toDisplayDate(isoDate: string) {
 const Parameters = () => {
   const { parameters, isLoading, deleteParameter } = useStatutoryParameters();
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedParameter, setSelectedParameter] = useState(null);
-  const [isDetailOpen, setIsDetailOpen] = useState(false);
-  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const navigate = useNavigate();
 
   const filteredParameters = parameters.filter(param =>
     param.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -66,36 +63,26 @@ const Parameters = () => {
       <DashboardLayout>
         <div className="space-y-6">
           {/* Header and search section */}
-          <div className="flex justify-between items-center">
-            <h1 className="text-3xl font-bold text-white">Parameters</h1>
-            <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-              <DialogTrigger asChild>
-                <Button className="bg-blue-600 hover:bg-blue-700">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Parameter
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-md flex flex-col">
-                <DialogHeader>
-                  <DialogTitle className="text-white">Add New Parameter</DialogTitle>
-                </DialogHeader>
-                <AddParameterForm onClose={() => setIsAddDialogOpen(false)} />
-              </DialogContent>
-            </Dialog>
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+            <h1 className="text-2xl sm:text-3xl font-bold text-white">Parameters</h1>
+            <Button className="bg-blue-600 hover:bg-blue-700 w-full sm:w-auto" onClick={() => navigate('/parameters/add')}>
+              <Plus className="w-4 h-4 mr-2" />
+              Add Parameter
+            </Button>
           </div>
 
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center gap-2 mt-2">
             <Search className="w-4 h-4 text-gray-400" />
             <Input
               placeholder="Search parameters..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="bg-gray-700/50 border-gray-600/50 text-white placeholder-gray-400 backdrop-blur-sm"
+              className="bg-gray-700/50 border-gray-600/50 text-white placeholder-gray-400 backdrop-blur-sm w-full"
             />
           </div>
 
-          <div className="space-y-3">
-            <Table>
+          <div className="space-y-3 overflow-x-auto">
+            <Table className="min-w-[600px]">
               <TableHeader>
                 <TableRow className="border-gray-700/50">
                   <TableHead className="text-gray-300">Name</TableHead>
@@ -127,13 +114,10 @@ const Parameters = () => {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => {
-                            setSelectedParameter(parameter);
-                            setIsDetailOpen(true);
-                          }}
+                          onClick={() => navigate(`/parameters/${parameter.id}/edit`)}
                           className="text-blue-400 hover:text-blue-300 hover:bg-blue-900/20 backdrop-blur-sm"
                         >
-                          <Eye className="w-4 h-4" />
+                          <Edit className="w-4 h-4" />
                         </Button>
                         <Button
                           variant="ghost"
@@ -150,66 +134,6 @@ const Parameters = () => {
               </TableBody>
             </Table>
           </div>
-
-          {/* Parameter Detail Dialog */}
-          <Dialog open={isDetailOpen} onOpenChange={setIsDetailOpen}>
-            <DialogContent className="sm:max-w-lg flex flex-col">
-              <DialogHeader>
-                <DialogTitle className="text-white">Parameter Details</DialogTitle>
-              </DialogHeader>
-              {selectedParameter && (
-                <div className="space-y-4">
-                  <div>
-                    <h3 className="text-lg font-semibold text-white">{selectedParameter.name}</h3>
-                    <p className="text-gray-300">{selectedParameter.category}</p>
-                  </div>
-                  {selectedParameter.description && (
-                    <div>
-                      <h4 className="font-medium text-gray-300">Description</h4>
-                      <p className="text-gray-400">{selectedParameter.description}</p>
-                    </div>
-                  )}
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <h4 className="font-medium text-gray-300">Issue Date</h4>
-                      <p className="text-white">{toDisplayDate(selectedParameter.issue_date)}</p>
-                    </div>
-                    <div>
-                      <h4 className="font-medium text-gray-300">Expiry Date</h4>
-                      <p className="text-white">{toDisplayDate(selectedParameter.expiry_date)}</p>
-                    </div>
-                  </div>
-                  <div>
-                    <h4 className="font-medium text-gray-300">Status</h4>
-                    <Badge className={`${getStatusColor(selectedParameter.status)} text-white mt-1 backdrop-blur-sm`}>
-                      {selectedParameter.status} - {selectedParameter.daysUntilExpiry > 0 
-                        ? `${selectedParameter.daysUntilExpiry} days remaining`
-                        : `Expired ${Math.abs(selectedParameter.daysUntilExpiry)} days ago`}
-                    </Badge>
-                  </div>
-                  <div className="flex justify-end gap-2 pt-4">
-                    <Button
-                      variant="outline"
-                      onClick={() => setIsDetailOpen(false)}
-                      className="border-gray-600/50 text-gray-300 hover:bg-gray-700/50 backdrop-blur-sm"
-                    >
-                      Close
-                    </Button>
-                    <Button
-                      variant="destructive"
-                      onClick={() => {
-                        handleDelete(selectedParameter.id);
-                        setIsDetailOpen(false);
-                      }}
-                    >
-                      <Trash2 className="w-4 h-4 mr-2" />
-                      Delete
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </DialogContent>
-          </Dialog>
         </div>
       </DashboardLayout>
     </ProtectedRoute>

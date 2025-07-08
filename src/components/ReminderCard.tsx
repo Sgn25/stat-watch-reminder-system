@@ -3,9 +3,8 @@ import React, { useState } from 'react';
 import { Bell, Calendar, Clock, Trash2, Edit } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useReminders } from '@/hooks/useReminders';
-import { EditReminderForm } from '@/components/EditReminderForm';
+import { useNavigate } from 'react-router-dom';
 import { formatDate, formatTime } from '@/lib/dateUtils';
 
 interface ReminderCardProps {
@@ -14,7 +13,7 @@ interface ReminderCardProps {
 
 export const ReminderCard = ({ reminder }: ReminderCardProps) => {
   const { deleteReminder, isDeletingReminder } = useReminders();
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const navigate = useNavigate();
 
   const handleDelete = () => {
     if (window.confirm('Are you sure you want to delete this reminder?')) {
@@ -93,7 +92,7 @@ export const ReminderCard = ({ reminder }: ReminderCardProps) => {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setIsEditDialogOpen(true)}
+                onClick={() => navigate(`/reminders/${reminder.id}/edit`)}
                 className="text-blue-400 border-blue-600/50 hover:bg-blue-900/20 backdrop-blur-sm"
               >
                 <Edit className="w-4 h-4 mr-1" />
@@ -113,15 +112,6 @@ export const ReminderCard = ({ reminder }: ReminderCardProps) => {
           </div>
         </CardContent>
       </Card>
-
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="sm:max-w-md flex flex-col">
-          <DialogHeader>
-            <DialogTitle className="text-white">Edit Reminder</DialogTitle>
-          </DialogHeader>
-          <EditReminderForm reminder={reminder} onClose={() => setIsEditDialogOpen(false)} />
-        </DialogContent>
-      </Dialog>
     </>
   );
 };
