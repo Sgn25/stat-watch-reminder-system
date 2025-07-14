@@ -443,6 +443,159 @@ const handler = async (req: Request): Promise<Response> => {
       }
     }
 
+    // 2b. PROCESS EXPIRED PARAMETERS (send daily reminders until renewed)
+    console.log('\n=== PROCESSING EXPIRED PARAMETERS FOR DAILY REMINDERS ===');
+    const { data: expiredParameters, error: expiredError } = await supabase
+      .from('statutory_parameters')
+      .select(`
+        *,
+        dairy_units (
+          id,
+          name,
+          code
+        )
+      `)
+      .lt('expiry_date', today); // Only parameters that are expired
+
+    if (expiredError) {
+      console.error('Error fetching expired parameters:', expiredError);
+      results.expiryReminders.errors++;
+    } else {
+      console.log(`Found ${expiredParameters?.length || 0} parameters expired and not renewed`);
+      // We'll count these as processed for reporting
+      results.expiryReminders.processed += expiredParameters?.length || 0;
+
+      if (expiredParameters && expiredParameters.length > 0) {
+        for (const param of expiredParameters) {
+          try {
+            console.log(`Processing daily expired reminder for parameter: ${param.name} (expired: ${param.expiry_date})`);
+
+            // Get users from the same dairy unit for this parameter
+            const { data: dairyUnitUsers, error: usersError } = await supabase
+              .from('profiles')
+              .select('id, full_name')
+              .eq('dairy_unit_id', param.dairy_unit_id);
+
+            if (usersError) {
+              console.error(`Error fetching users for dairy unit ${param.dairy_unit_id}:`, usersError);
+              results.expiryReminders.errors++;
+              continue;
+            }
+
+            // Send daily expired reminder emails to all users in the dairy unit
+            for (const user of dairyUnitUsers || []) {
+              // Get user email from auth.users table
+              const { data: authUser, error: authError } = await supabase.auth.admin.getUserById(user.id);
+              
+              if (authError || !authUser?.user?.email) {
+                console.log(`Skipping expired email for parameter ${param.id} to ${user.id} - missing user email`);
+                continue;
+              }
+
+              // Check if user is subscribed to email notifications
+              const { data: emailSubscription, error: subscriptionError } = await supabase
+                .from('email_subscriptions')
+                .select('is_subscribed')
+                .eq('user_id', user.id)
+                .eq('dairy_unit_id', param.dairy_unit_id)
+                .single();
+
+              if (subscriptionError && subscriptionError.code !== 'PGRST116') {
+                console.error(`Error checking email subscription for user ${user.id}:`, subscriptionError);
+              }
+
+              // Only send email if user is subscribed (only if a row exists and is_subscribed is true)
+              const isSubscribed = emailSubscription?.is_subscribed === true;
+              
+              if (!isSubscribed) {
+                console.log(`Skipping expired email for parameter ${param.id} to ${user.id} - user is unsubscribed or no subscription row found`);
+                continue;
+              }
+              
+              if (resendApiKey && resendFrom) {
+                // Format dates as DD/MM/YYYY
+                function formatDateDMY(dateStr) {
+                  const d = new Date(dateStr);
+                  return d.toLocaleDateString('en-GB');
+                }
+                const expiryDateDMY = formatDateDMY(param.expiry_date);
+                const todayDMY = formatDateDMY(today);
+                const daysSinceExpiry = Math.abs(Math.ceil((new Date(param.expiry_date).getTime() - new Date(today).getTime()) / (1000 * 60 * 60 * 24)));
+                const terminology = getCategoryTerminology(param.category);
+                const emailSubject = `Overdue! "${param.name}" expired on "${expiryDateDMY}"`;
+                const emailBody = `
+                  <div style="font-family: Arial, sans-serif; background: #f7f9fb; padding: 0; margin: 0;">
+                    <div style="max-width: 600px; margin: 40px auto; background: #fff; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.07);">
+                      <div style="background: #b91c1c; color: #fff; padding: 24px 0; text-align: center;">
+                        <div style="font-size: 28px; font-weight: bold;">${terminology.title} (Overdue)</div>
+                        <div style="font-size: 15px; margin-top: 4px;">StatMonitor - Your Compliance Partner</div>
+                      </div>
+                      <div style="padding: 32px 32px 24px 32px;">
+                        <div style="font-size: 17px; margin-bottom: 16px;">Hello, ${user.full_name || 'User'},</div>
+                        <div style="background: #fee2e2; color: #b91c1c; border-radius: 8px; padding: 16px; margin-bottom: 24px;">
+                          <div style="font-weight: bold; font-size: 16px; margin-bottom: 4px;">⚠️ Overdue Action Required</div>
+                          <div>Your ${param.category.toLowerCase()} <b>${param.name}</b> expired on <b>${expiryDateDMY}</b></div>
+                        </div>
+                        <div style="background: #f1f5f9; border-radius: 8px; padding: 16px; margin-bottom: 24px;">
+                          <div style="font-weight: bold; font-size: 16px; margin-bottom: 8px;">📄 ${param.category} Information</div>
+                          <div><b>${param.category} Name:</b> ${param.name}</div>
+                          <div><b>Category:</b> ${param.category}</div>
+                          <div><b>Expiry Date:</b> ${expiryDateDMY}</div>
+                        </div>
+                        <div style="background: #fee2e2; border-radius: 8px; padding: 16px; margin-bottom: 24px;">
+                          <div style="font-weight: bold; font-size: 15px; margin-bottom: 4px;">⏰ Overdue by</div>
+                          <div>This ${param.category.toLowerCase()} is <b>${daysSinceExpiry} days overdue</b>. Please renew it immediately to restore compliance.</div>
+                        </div>
+                        <div style="text-align: center; margin-bottom: 24px;">
+                          <a href="#" style="background: #b91c1c; color: #fff; padding: 12px 28px; border-radius: 6px; text-decoration: none; font-weight: bold; font-size: 16px;">${terminology.actionText}</a>
+                        </div>
+                        <div style="font-size: 14px; color: #374151;">${terminology.description}</div>
+                      </div>
+                      <div style="background: #f1f5f9; color: #64748b; font-size: 13px; text-align: center; padding: 18px 0;">
+                        This is an automated reminder from <b>StatMonitor</b><br>
+                        Need help? Contact your administrator or reply to this email.<br>
+                        © 2024 StatMonitor. All rights reserved.<br>
+                        <a href="#" style="color: #b91c1c;">Unsubscribe from these emails</a>
+                      </div>
+                    </div>
+                  </div>
+                `;
+                const emailResponse = await fetch('https://api.resend.com/emails', {
+                  method: 'POST',
+                  headers: {
+                    'Authorization': `Bearer ${resendApiKey}`,
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify({
+                    from: resendFrom,
+                    to: authUser.user.email,
+                    subject: emailSubject,
+                    html: emailBody,
+                  }),
+                });
+                if (!emailResponse.ok) {
+                  const errorText = await emailResponse.text();
+                  console.error(`Failed to send expired email for parameter ${param.id} to ${authUser.user.email}:`, errorText);
+                  results.expiryReminders.errors++;
+                } else {
+                  console.log(`Expired email sent successfully for parameter ${param.id} to ${authUser.user.email}`);
+                  results.expiryReminders.sent++;
+                  emailsSent++;
+                }
+              } else {
+                console.log(`Skipping expired email for parameter ${param.id} to ${authUser?.user?.email || user.id} - missing email configuration`);
+              }
+            }
+            console.log(`Successfully processed daily expired reminder for parameter: ${param.id}`);
+          } catch (error) {
+            console.error(`Error processing daily expired reminder for parameter ${param.id}:`, error);
+            results.expiryReminders.errors++;
+            errorsEncountered++;
+          }
+        }
+      }
+    }
+
     // 3. CLEANUP EXPIRED REMINDERS
     console.log('\n=== CLEANING UP EXPIRED REMINDERS ===');
     
