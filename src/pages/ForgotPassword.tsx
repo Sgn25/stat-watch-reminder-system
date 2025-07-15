@@ -22,7 +22,7 @@ const ForgotPassword: React.FC = () => {
       setSubmitted(true);
       toast({
         title: 'Check your email',
-        description: 'A reset code has been sent to your email if it is registered.',
+        description: 'A password reset link has been sent to your email if it is registered.',
       });
     } catch (error: any) {
       toast({
@@ -41,7 +41,7 @@ const ForgotPassword: React.FC = () => {
         <div className="glass-card-vista shadow-2xl">
           <CardHeader>
             <CardTitle className="text-white">Forgot Password</CardTitle>
-            <CardDescription className="text-gray-200">Enter your registered email to receive a reset code.</CardDescription>
+            <CardDescription className="text-gray-200">Enter your registered email to receive a password reset link.</CardDescription>
           </CardHeader>
           <CardContent>
             {!submitted ? (
@@ -58,13 +58,13 @@ const ForgotPassword: React.FC = () => {
                   />
                 </div>
                 <Button type="submit" className="w-full glass-btn-vista" disabled={loading}>
-                  {loading ? 'Sending...' : 'Send Reset Code'}
+                  {loading ? 'Sending...' : 'Send Reset Link'}
                 </Button>
               </form>
             ) : (
               <div className="text-center text-green-400 mt-4">
-                If your email is registered, you will receive a reset code shortly.<br />
-                <a href="/reset-password" className="text-blue-400 underline mt-4 inline-block">Already have a code? Reset Password</a>
+                If your email is registered, you will receive a password reset link shortly.<br />
+                <a href="/reset-password" className="text-blue-400 underline mt-4 inline-block">Received a reset link? Reset Password</a>
               </div>
             )}
           </CardContent>
