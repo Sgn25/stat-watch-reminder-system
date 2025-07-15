@@ -18,26 +18,21 @@ export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
   const location = useLocation();
 
   useEffect(() => {
-    if (!loading && user && !profileLoading && !profile && location.pathname !== '/complete-profile') {
+    // Allow /profile route even if profile is missing
+    if (!loading && user && !profileLoading && !profile && location.pathname !== '/complete-profile' && location.pathname !== '/profile') {
       navigate('/complete-profile');
     }
   }, [user, loading, profile, profileLoading, navigate, location.pathname]);
 
   if (loading || profileLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
-          <p className="text-gray-600">Loading...</p>
-        </div>
-      </div>
-    );
+    return <div>Loading...</div>;
   }
 
   if (!user) {
+    // Show login form or redirect to login
     return <AuthForm />;
   }
 
-  // If profile is missing, user will be redirected above
+  // If profile is missing, user will be redirected above (except for /profile)
   return <>{children}</>;
 };
