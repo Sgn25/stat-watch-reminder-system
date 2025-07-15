@@ -54,30 +54,11 @@ export const AuthForm = () => {
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!selectedDairyUnit) {
-      toast({
-        title: "Error",
-        description: "Please select a dairy unit",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (!isValidUUID(selectedDairyUnit)) {
-      toast({
-        title: "Error",
-        description: "Invalid dairy unit selected. Please try again.",
-        variant: "destructive",
-      });
-      return;
-    }
 
     setLoading(true);
 
     try {
-      // 1. Sign up the user
-      const { data, error } = await supabase.auth.signUp({
+      const { error } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -87,31 +68,16 @@ export const AuthForm = () => {
 
       if (error) throw error;
 
-      // 2. Insert into profiles table (with dairy_unit_id)
-      const user = data.user;
-      if (user) {
-        const { error: profileError } = await supabase.from('profiles').insert({
-          id: user.id,
-          full_name: fullName,
-          dairy_unit_id: selectedDairyUnit,
-          email: user.email,
-        });
-        if (profileError) throw profileError;
-      }
-
       toast({
         title: "Account created!",
         description: "Please check your email to verify your account.",
       });
     } catch (error: any) {
-      // Show the full error object if available
       toast({
         title: "Error",
         description: error?.message || JSON.stringify(error),
         variant: "destructive",
       });
-      // Optionally log error for debugging
-      // console.error('Signup error:', error);
     } finally {
       setLoading(false);
     }
@@ -205,18 +171,6 @@ export const AuthForm = () => {
               <CardContent>
                 <form onSubmit={handleSignUp} className="space-y-4">
                   <div>
-                    <Label htmlFor="signup-name" className="text-gray-200">Full Name</Label>
-                    <Input
-                      id="signup-name"
-                      type="text"
-                      value={fullName}
-                      onChange={(e) => setFullName(e.target.value)}
-                      placeholder="Enter your full name"
-                      className="glass-input-vista"
-                      required
-                    />
-                  </div>
-                  <div>
                     <Label htmlFor="signup-email" className="text-gray-200">Email</Label>
                     <Input
                       id="signup-email"
@@ -239,23 +193,6 @@ export const AuthForm = () => {
                       className="glass-input-vista"
                       required
                     />
-                  </div>
-                  <div>
-                    <Label htmlFor="signup-dairy" className="text-gray-200">Dairy Unit</Label>
-                    <Select value={selectedDairyUnit} onValueChange={setSelectedDairyUnit}>
-                      <SelectTrigger className="glass-input-vista">
-                        <SelectValue placeholder="Select dairy unit" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {unitsLoading ? (
-                          <SelectItem value="" disabled>Loading...</SelectItem>
-                        ) : (
-                          dairyUnits.map((unit) => (
-                            <SelectItem key={unit.id} value={unit.id}>{unit.name}</SelectItem>
-                          ))
-                        )}
-                      </SelectContent>
-                    </Select>
                   </div>
                   <Button type="submit" className="w-full glass-btn-vista" disabled={loading}>
                     {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
