@@ -76,19 +76,28 @@ export const AuthForm = () => {
     setLoading(true);
 
     try {
-      const { error } = await supabase.auth.signUp({
+      // 1. Sign up the user
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          data: {
-            full_name: fullName,
-            dairy_unit_id: selectedDairyUnit,
-          },
           emailRedirectTo: `${window.location.origin}/email-verified`,
         },
       });
 
       if (error) throw error;
+
+      // 2. Insert into profiles table (with dairy_unit_id)
+      const user = data.user;
+      if (user) {
+        const { error: profileError } = await supabase.from('profiles').insert({
+          id: user.id,
+          full_name: fullName,
+          dairy_unit_id: selectedDairyUnit,
+          email: user.email,
+        });
+        if (profileError) throw profileError;
+      }
 
       toast({
         title: "Account created!",
