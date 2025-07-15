@@ -84,7 +84,7 @@ export const AuthForm = () => {
             full_name: fullName,
             dairy_unit_id: selectedDairyUnit,
           },
-          emailRedirectTo: `${window.location.origin}/`,
+          emailRedirectTo: `${window.location.origin}/email-verified`,
         },
       });
 
@@ -168,6 +168,15 @@ export const AuthForm = () => {
                       className="glass-input-vista"
                       required
                     />
+                  </div>
+                  <div className="flex justify-end mt-1 mb-2">
+                    <a
+                      href="/forgot-password"
+                      className="text-blue-400 hover:text-blue-600 text-sm font-medium transition-colors underline"
+                      style={{ textDecorationThickness: 2 }}
+                    >
+                      Forgot Password?
+                    </a>
                   </div>
                   <Button type="submit" className="w-full glass-btn-vista" disabled={loading}>
                     {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

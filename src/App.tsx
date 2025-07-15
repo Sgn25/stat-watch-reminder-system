@@ -18,6 +18,9 @@ import AddParameterPage from "./pages/AddParameterPage";
 import AddReminderPage from "./pages/AddReminderPage";
 import EditParameterPage from "./pages/EditParameterPage";
 import EditReminderPage from "./pages/EditReminderPage";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
+import EmailVerified from "./pages/EmailVerified";
 
 const queryClient = new QueryClient();
 
@@ -35,6 +38,9 @@ const App = () => {
         <BrowserRouter>
           <PageTransition>
             <Routes>
+              <Route path="/email-verified" element={<EmailVerified />} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/" element={<Index />} />
               <Route path="/parameters" element={<Parameters />} />
               <Route path="/parameters/:id" element={<ParameterDetailPage />} />
