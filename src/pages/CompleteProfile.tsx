@@ -13,21 +13,34 @@ const CompleteProfile: React.FC = () => {
   const { dairyUnits } = useDairyUnits();
   const [fullName, setFullName] = useState('');
   const [dairyUnitId, setDairyUnitId] = useState('');
+  const [whatsappNumber, setWhatsappNumber] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!fullName || !dairyUnitId) {
-      toast({ title: 'Error', description: 'All fields are required', variant: 'destructive' });
+      toast({ title: 'Error', description: 'Name and Dairy Unit are required', variant: 'destructive' });
       return;
     }
+
+    // Validate WhatsApp number format if provided
+    if (whatsappNumber && !/^\+?[1-9]\d{1,14}$/.test(whatsappNumber)) {
+      toast({ 
+        title: 'Error', 
+        description: 'Please enter a valid WhatsApp number (e.g., +1234567890 or 1234567890)', 
+        variant: 'destructive' 
+      });
+      return;
+    }
+
     setLoading(true);
     const { error } = await supabase.from('profiles').insert({
       id: user.id,
       full_name: fullName,
       dairy_unit_id: dairyUnitId,
       email: user.email,
+      whatsapp_number: whatsappNumber || null,
     });
     if (!error) {
       // Insert email subscription (default to subscribed)
@@ -37,10 +50,27 @@ const CompleteProfile: React.FC = () => {
         email_address: user.email,
         is_subscribed: true,
       });
+      
+      // Insert WhatsApp subscription if number provided
+      if (whatsappNumber) {
+        const { error: whatsappSubError } = await supabase.from('whatsapp_subscriptions').insert({
+          user_id: user.id,
+          dairy_unit_id: dairyUnitId,
+          whatsapp_number: whatsappNumber,
+          is_subscribed: true,
+        });
+        if (whatsappSubError) {
+          toast({ title: 'Warning', description: 'Profile created, but failed to subscribe to WhatsApp alerts: ' + whatsappSubError.message, variant: 'destructive' });
+        }
+      }
+
       if (subError) {
-        toast({ title: 'Warning', description: 'Profile created, but failed to subscribe to alerts: ' + subError.message, variant: 'destructive' });
+        toast({ title: 'Warning', description: 'Profile created, but failed to subscribe to email alerts: ' + subError.message, variant: 'destructive' });
       } else {
-        toast({ title: 'Profile created!', description: 'You are now subscribed to alerts.', variant: 'default' });
+        const message = whatsappNumber 
+          ? 'You are now subscribed to email and WhatsApp alerts.'
+          : 'You are now subscribed to email alerts.';
+        toast({ title: 'Profile created!', description: message, variant: 'default' });
       }
       navigate('/');
     } else {
@@ -81,6 +111,17 @@ const CompleteProfile: React.FC = () => {
                     <option key={unit.id} value={unit.id}>{unit.name}</option>
                   ))}
                 </select>
+              </div>
+              <div>
+                <label className="block mb-1 text-gray-200">WhatsApp Number (Optional)</label>
+                <input
+                  type="text"
+                  className="w-full border rounded p-2 glass-input-vista bg-gray-800 text-white"
+                  value={whatsappNumber}
+                  onChange={e => setWhatsappNumber(e.target.value)}
+                  placeholder="+1234567890"
+                />
+                <p className="text-xs text-gray-400 mt-1">Enter your WhatsApp number to receive WhatsApp reminders</p>
               </div>
               <Button type="submit" className="w-full glass-btn-vista" disabled={loading}>
                 {loading ? 'Saving...' : 'Save Profile'}
