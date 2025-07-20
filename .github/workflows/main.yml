@@ -1,0 +1,21 @@
+name: Schedule WhatsApp Check
+
+on:
+  schedule:
+    # Runs every day at 9:00 AM IST (3:30 AM UTC)
+    - cron: '30 3 * * *'
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  call-supabase-function:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call schedule-whatsapp-check function
+        env:
+          SUPABASE_PROJECT_URL: ${{ secrets.SUPABASE_PROJECT_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          curl -X POST \
+            "${SUPABASE_PROJECT_URL}/functions/v1/schedule-whatsapp-check" \
+            -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
+            -H "Content-Type: application/json"
