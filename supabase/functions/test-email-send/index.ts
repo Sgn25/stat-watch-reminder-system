@@ -16,6 +16,18 @@ const handler = async (req: Request): Promise<Response> => {
     console.log('Manual test: Calling send-reminder-emails function...');
     console.log('Timestamp:', new Date().toISOString());
     
+    // Parse user_id and dairy_unit_id from request body
+    let user_id = undefined;
+    let dairy_unit_id = undefined;
+    try {
+      const body = await req.json();
+      user_id = body.user_id;
+      dairy_unit_id = body.dairy_unit_id;
+      console.log('Received user_id:', user_id, 'dairy_unit_id:', dairy_unit_id);
+    } catch (e) {
+      console.log('No JSON body or failed to parse user_id/dairy_unit_id');
+    }
+    
     // Call the send-reminder-emails function
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
@@ -36,7 +48,9 @@ const handler = async (req: Request): Promise<Response> => {
       body: JSON.stringify({ 
         source: 'manual-test',
         triggeredBy: 'test-email-send',
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        user_id,
+        dairy_unit_id
       }),
     });
 

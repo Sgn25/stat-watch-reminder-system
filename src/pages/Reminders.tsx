@@ -9,12 +9,14 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { ReminderCard } from '@/components/ReminderCard';
+import { useUserProfile } from '@/hooks/useUserProfile';
 
 const Reminders = () => {
   const { reminders, isLoading } = useReminders();
   const navigate = useNavigate();
   const [isTestingEmail, setIsTestingEmail] = useState(false);
   const { toast } = useToast();
+  const { profile } = useUserProfile();
 
   // Group reminders by parameter
   const remindersByParameter = reminders.reduce((acc: any, reminder: any) => {
@@ -34,7 +36,12 @@ const Reminders = () => {
   const handleTestEmail = async () => {
     setIsTestingEmail(true);
     try {
-      const { data, error } = await supabase.functions.invoke('test-email-send');
+      const { data, error } = await supabase.functions.invoke('test-email-send', {
+        body: {
+          user_id: profile?.id,
+          dairy_unit_id: profile?.dairy_unit_id,
+        },
+      });
       
       if (error) {
         throw error;
@@ -61,7 +68,12 @@ const Reminders = () => {
   const handleTestWhatsApp = async () => {
     setIsTestingWhatsApp(true);
     try {
-      const { data, error } = await supabase.functions.invoke('test-whatsapp-send');
+      const { data, error } = await supabase.functions.invoke('test-whatsapp-send', {
+        body: {
+          user_id: profile?.id,
+          dairy_unit_id: profile?.dairy_unit_id,
+        },
+      });
       
       if (error) {
         throw error;

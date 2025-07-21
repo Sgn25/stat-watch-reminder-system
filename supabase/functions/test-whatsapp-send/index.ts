@@ -55,6 +55,18 @@ const handler = async (req: Request): Promise<Response> => {
     console.log('Timestamp:', new Date().toISOString());
     console.log('IST Time:', new Date().toLocaleString("en-US", {timeZone: "Asia/Kolkata"}));
 
+    // Parse user_id and dairy_unit_id from request body
+    let user_id = undefined;
+    let dairy_unit_id = undefined;
+    try {
+      const body = await req.json();
+      user_id = body.user_id;
+      dairy_unit_id = body.dairy_unit_id;
+      console.log('Received user_id:', user_id, 'dairy_unit_id:', dairy_unit_id);
+    } catch (e) {
+      console.log('No JSON body or failed to parse user_id/dairy_unit_id');
+    }
+
     // Environment variables check
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
@@ -81,98 +93,28 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log('Supabase client initialized successfully');
 
-    // Get a test user with WhatsApp subscription
-    const { data: testSubscription, error: subscriptionError } = await supabase
-      .from('whatsapp_subscriptions')
-      .select(`
-        *,
-        profiles!inner (
-          id,
-          full_name,
-          whatsapp_number
-        )
-      `)
-      .eq('is_subscribed', true)
-      .not('whatsapp_number', 'is', null)
-      .limit(1)
-      .single();
-
-    if (subscriptionError) {
-      console.error('Error fetching test WhatsApp subscription:', subscriptionError);
-      throw new Error('No test WhatsApp subscription found. Please ensure at least one user has subscribed to WhatsApp notifications with a valid number.');
-    }
-
-    if (!testSubscription) {
-      throw new Error('No test WhatsApp subscription found. Please ensure at least one user has subscribed to WhatsApp notifications with a valid number.');
-    }
-
-    console.log('Found test subscription:', {
-      user_id: testSubscription.user_id,
-      whatsapp_number: testSubscription.whatsapp_number,
-      user_name: testSubscription.profiles?.full_name
-    });
-
-    // Create test message
-    const testMessage = `🧪 *WhatsApp Test Message*
-
-Hello ${testSubscription.profiles?.full_name || 'Test User'},
-
-This is a test WhatsApp message from StatMonitor to verify that WhatsApp notifications are working correctly.
-
-📅 *Test Details:*
-• Sent at: ${new Date().toLocaleString("en-US", {timeZone: "Asia/Kolkata"})}
-• Function: test-whatsapp-send
-• Status: Testing WhatsApp Integration
-
-If you receive this message, WhatsApp notifications are working properly!
-
----
-*StatMonitor - Your Compliance Partner*
-Reply STOP to unsubscribe from WhatsApp reminders.`;
-
-    console.log('Sending test WhatsApp message to:', testSubscription.whatsapp_number);
-
-    // Send test WhatsApp message
-    const whatsappResult = await sendWhatsAppMessage(testSubscription.whatsapp_number, testMessage);
-
-    console.log('WhatsApp API response:', whatsappResult);
-
-    // Log the test message
-    const { error: logError } = await supabase
-      .from('whatsapp_logs')
-      .insert({
-        user_id: testSubscription.user_id,
-        dairy_unit_id: testSubscription.dairy_unit_id,
-        whatsapp_number: testSubscription.whatsapp_number,
-        message_type: 'test',
-        parameter_id: null,
-        message_content: testMessage,
-        status: 'sent',
-        sent_at: new Date().toISOString()
-      });
-
-    if (logError) {
-      console.error('Error logging test WhatsApp message:', logError);
-    }
-
-    const finalResult = {
-      success: true,
-      message: 'Test WhatsApp message sent successfully',
-      timestamp: new Date().toISOString(),
-      istTime: new Date().toLocaleString("en-US", {timeZone: "Asia/Kolkata"}),
-      sentTo: {
-        user_id: testSubscription.user_id,
-        user_name: testSubscription.profiles?.full_name,
-        whatsapp_number: testSubscription.whatsapp_number
+    // Instead of picking a test user, call send-whatsapp-messages with these params
+    const response = await fetch(`${supabaseUrl}/functions/v1/send-whatsapp-messages`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${serviceRoleKey}`,
+        'Content-Type': 'application/json',
       },
-      whatsappApiResponse: whatsappResult,
-      note: 'Check the WhatsApp number above to see if the test message was received'
-    };
-
-    console.log('=== FINAL RESULTS ===');
-    console.log(JSON.stringify(finalResult, null, 2));
-
-    return new Response(JSON.stringify(finalResult), {
+      body: JSON.stringify({
+        source: 'manual-test',
+        triggeredBy: 'test-whatsapp-send',
+        timestamp: new Date().toISOString(),
+        user_id,
+        dairy_unit_id
+      }),
+    });
+    const result = await response.json();
+    return new Response(JSON.stringify({
+      success: true,
+      message: 'Manual WhatsApp test completed',
+      timestamp: new Date().toISOString(),
+      testResults: result
+    }), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
