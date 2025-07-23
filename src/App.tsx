@@ -12,7 +12,7 @@ import Reminders from "./pages/Reminders";
 import CalendarPage from "./pages/Calendar";
 import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
-import React from "react";
+import React, { useEffect } from "react";
 import ParameterDetailPage from "./pages/ParameterDetailPage";
 import AddParameterPage from "./pages/AddParameterPage";
 import AddReminderPage from "./pages/AddReminderPage";
@@ -27,9 +27,13 @@ const queryClient = new QueryClient();
 
 const App = () => {
   // Cleanup any existing body scroll locks on app load
-  React.useEffect(() => {
-    cleanupBodyScroll();
-  }, []);
+  // React.useEffect(() => {
+  //   cleanupBodyScroll();
+  // }, []);
+
+  useEffect(()=>{
+    cleanupBodyScroll()
+  },[])
 
   return (
     <QueryClientProvider client={queryClient}>
