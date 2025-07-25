@@ -90,6 +90,8 @@ const handler = async (req: Request): Promise<Response> => {
     } catch (e) {
       console.log('No JSON body provided, using empty object');
     }
+    const filterUserId = requestData.user_id;
+    const filterDairyUnitId = requestData.dairy_unit_id;
 
     // Initialize Supabase client with service role key
     const supabase = createClient(supabaseUrl, serviceRoleKey, {
@@ -120,7 +122,7 @@ const handler = async (req: Request): Promise<Response> => {
     // 1. PROCESS USER-SET REMINDERS DUE TODAY
     console.log('\n=== PROCESSING USER-SET REMINDERS ===');
     
-    const { data: userReminders, error: userRemindersError } = await supabase
+    let userRemindersQuery = supabase
       .from('reminders')
       .select(`
         *,
@@ -132,7 +134,11 @@ const handler = async (req: Request): Promise<Response> => {
           dairy_unit_id
         )
       `)
-      .eq('reminder_date', today); // Removed .eq('is_sent', false)
+      .eq('reminder_date', today);
+    if (filterUserId && filterDairyUnitId) {
+      userRemindersQuery = userRemindersQuery.eq('user_id', filterUserId).eq('dairy_unit_id', filterDairyUnitId);
+    }
+    const { data: userReminders, error: userRemindersError } = await userRemindersQuery;
 
     if (userRemindersError) {
       console.error('Error fetching user reminders:', userRemindersError);
@@ -146,11 +152,14 @@ const handler = async (req: Request): Promise<Response> => {
           try {
             console.log(`Processing user reminder: ${reminder.id} for parameter: ${reminder.statutory_parameters?.name}`);
             
-            // Get all users in the same dairy unit
-            const { data: dairyUnitUsers, error: usersError } = await supabase
+            let dairyUnitUsersQuery = supabase
               .from('profiles')
               .select('id, full_name')
               .eq('dairy_unit_id', reminder.dairy_unit_id);
+            if (filterUserId && filterDairyUnitId) {
+              dairyUnitUsersQuery = dairyUnitUsersQuery.eq('id', filterUserId);
+            }
+            const { data: dairyUnitUsers, error: usersError } = await dairyUnitUsersQuery;
 
             if (usersError) {
               console.error(`Error fetching users for dairy unit ${reminder.dairy_unit_id}:`, usersError);
@@ -291,7 +300,7 @@ const handler = async (req: Request): Promise<Response> => {
     
     console.log('Checking for parameters expiring on or before:', expiryCheckDate);
 
-    const { data: expiringParameters, error: expiryError } = await supabase
+    let expiringParametersQuery = supabase
       .from('statutory_parameters')
       .select(`
         *,
@@ -302,7 +311,11 @@ const handler = async (req: Request): Promise<Response> => {
         )
       `)
       .lte('expiry_date', expiryCheckDate)
-      .gte('expiry_date', today); // Only parameters that haven't expired yet
+      .gte('expiry_date', today);
+    if (filterDairyUnitId) {
+      expiringParametersQuery = expiringParametersQuery.eq('dairy_unit_id', filterDairyUnitId);
+    }
+    const { data: expiringParameters, error: expiryError } = await expiringParametersQuery;
 
     if (expiryError) {
       console.error('Error fetching expiring parameters:', expiryError);
@@ -316,11 +329,14 @@ const handler = async (req: Request): Promise<Response> => {
           try {
             console.log(`Processing expiry reminder for parameter: ${param.name} (expires: ${param.expiry_date})`);
             
-            // Get users from the same dairy unit for this parameter
-            const { data: dairyUnitUsers, error: usersError } = await supabase
+            let dairyUnitUsersQuery2 = supabase
               .from('profiles')
               .select('id, full_name')
               .eq('dairy_unit_id', param.dairy_unit_id);
+            if (filterUserId && filterDairyUnitId) {
+              dairyUnitUsersQuery2 = dairyUnitUsersQuery2.eq('id', filterUserId);
+            }
+            const { data: dairyUnitUsers, error: usersError } = await dairyUnitUsersQuery2;
 
             if (usersError) {
               console.error(`Error fetching users for dairy unit ${param.dairy_unit_id}:`, usersError);
@@ -445,7 +461,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     // 2b. PROCESS EXPIRED PARAMETERS (send daily reminders until renewed)
     console.log('\n=== PROCESSING EXPIRED PARAMETERS FOR DAILY REMINDERS ===');
-    const { data: expiredParameters, error: expiredError } = await supabase
+    let expiredParametersQuery = supabase
       .from('statutory_parameters')
       .select(`
         *,
@@ -455,7 +471,11 @@ const handler = async (req: Request): Promise<Response> => {
           code
         )
       `)
-      .lt('expiry_date', today); // Only parameters that are expired
+      .lt('expiry_date', today);
+    if (filterDairyUnitId) {
+      expiredParametersQuery = expiredParametersQuery.eq('dairy_unit_id', filterDairyUnitId);
+    }
+    const { data: expiredParameters, error: expiredError } = await expiredParametersQuery;
 
     if (expiredError) {
       console.error('Error fetching expired parameters:', expiredError);
@@ -470,11 +490,14 @@ const handler = async (req: Request): Promise<Response> => {
           try {
             console.log(`Processing daily expired reminder for parameter: ${param.name} (expired: ${param.expiry_date})`);
 
-            // Get users from the same dairy unit for this parameter
-            const { data: dairyUnitUsers, error: usersError } = await supabase
+            let dairyUnitUsersQuery3 = supabase
               .from('profiles')
               .select('id, full_name')
               .eq('dairy_unit_id', param.dairy_unit_id);
+            if (filterUserId && filterDairyUnitId) {
+              dairyUnitUsersQuery3 = dairyUnitUsersQuery3.eq('id', filterUserId);
+            }
+            const { data: dairyUnitUsers, error: usersError } = await dairyUnitUsersQuery3;
 
             if (usersError) {
               console.error(`Error fetching users for dairy unit ${param.dairy_unit_id}:`, usersError);

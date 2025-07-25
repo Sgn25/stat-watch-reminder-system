@@ -4,17 +4,19 @@ import { DashboardLayout } from '@/components/DashboardLayout';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { useReminders } from '@/hooks/useReminders';
 import { Button } from '@/components/ui/button';
-import { Bell, Plus, Mail } from 'lucide-react';
+import { Bell, Plus, Mail, MessageCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { ReminderCard } from '@/components/ReminderCard';
+import { useUserProfile } from '@/hooks/useUserProfile';
 
 const Reminders = () => {
   const { reminders, isLoading } = useReminders();
   const navigate = useNavigate();
   const [isTestingEmail, setIsTestingEmail] = useState(false);
   const { toast } = useToast();
+  const { profile } = useUserProfile();
 
   // Group reminders by parameter
   const remindersByParameter = reminders.reduce((acc: any, reminder: any) => {
@@ -29,10 +31,17 @@ const Reminders = () => {
     return acc;
   }, {});
 
+  const [isTestingWhatsApp, setIsTestingWhatsApp] = useState(false);
+
   const handleTestEmail = async () => {
     setIsTestingEmail(true);
     try {
-      const { data, error } = await supabase.functions.invoke('test-email-send');
+      const { data, error } = await supabase.functions.invoke('test-email-send', {
+        body: {
+          user_id: profile?.id,
+          dairy_unit_id: profile?.dairy_unit_id,
+        },
+      });
       
       if (error) {
         throw error;
@@ -53,6 +62,38 @@ const Reminders = () => {
       console.error('Test email error:', error);
     } finally {
       setIsTestingEmail(false);
+    }
+  };
+
+  const handleTestWhatsApp = async () => {
+    setIsTestingWhatsApp(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('test-whatsapp-send', {
+        body: {
+          user_id: profile?.id,
+          dairy_unit_id: profile?.dairy_unit_id,
+        },
+      });
+      
+      if (error) {
+        throw error;
+      }
+      
+      toast({
+        title: "Test WhatsApp Triggered",
+        description: "Check the function logs for results and your WhatsApp",
+      });
+      
+      console.log('Test WhatsApp result:', data);
+    } catch (error: any) {
+      toast({
+        title: "Test Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+      console.error('Test WhatsApp error:', error);
+    } finally {
+      setIsTestingWhatsApp(false);
     }
   };
 
@@ -86,6 +127,15 @@ const Reminders = () => {
               >
                 <Mail className="w-4 h-4 mr-2" />
                 {isTestingEmail ? 'Testing...' : 'Test Email'}
+              </Button>
+              <Button 
+                onClick={handleTestWhatsApp}
+                disabled={isTestingWhatsApp}
+                variant="outline"
+                className="border-green-600/50 text-green-400 hover:bg-green-900/20 backdrop-blur-sm"
+              >
+                <MessageCircle className="w-4 h-4 mr-2" />
+                {isTestingWhatsApp ? 'Testing...' : 'Test WhatsApp'}
               </Button>
               <Button className="bg-blue-600 hover:bg-blue-700" onClick={() => navigate('/reminders/add')}>
                 <Plus className="w-4 h-4 mr-2" />

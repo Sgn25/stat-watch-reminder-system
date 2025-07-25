@@ -154,6 +154,7 @@ export type Database = {
           full_name: string | null
           id: string
           updated_at: string
+          whatsapp_number: string | null
         }
         Insert: {
           created_at?: string
@@ -161,6 +162,7 @@ export type Database = {
           full_name?: string | null
           id: string
           updated_at?: string
+          whatsapp_number?: string | null
         }
         Update: {
           created_at?: string
@@ -168,6 +170,7 @@ export type Database = {
           full_name?: string | null
           id?: string
           updated_at?: string
+          whatsapp_number?: string | null
         }
         Relationships: [
           {
@@ -300,6 +303,124 @@ export type Database = {
             columns: ["dairy_unit_id"]
             isOneToOne: false
             referencedRelation: "dairy_units"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      whatsapp_subscriptions: {
+        Row: {
+          id: string
+          user_id: string
+          dairy_unit_id: string
+          whatsapp_number: string
+          is_subscribed: boolean
+          subscribed_at: string
+          unsubscribed_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          dairy_unit_id: string
+          whatsapp_number: string
+          is_subscribed?: boolean
+          subscribed_at?: string
+          unsubscribed_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          dairy_unit_id?: string
+          whatsapp_number?: string
+          is_subscribed?: boolean
+          subscribed_at?: string
+          unsubscribed_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_subscriptions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_subscriptions_dairy_unit_id_fkey"
+            columns: ["dairy_unit_id"]
+            isOneToOne: false
+            referencedRelation: "dairy_units"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      whatsapp_logs: {
+        Row: {
+          id: string
+          user_id: string | null
+          dairy_unit_id: string | null
+          whatsapp_number: string
+          message_type: string
+          parameter_id: string | null
+          message_content: string
+          status: string
+          error_message: string | null
+          sent_at: string
+          delivered_at: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id?: string | null
+          dairy_unit_id?: string | null
+          whatsapp_number: string
+          message_type: string
+          parameter_id?: string | null
+          message_content: string
+          status?: string
+          error_message?: string | null
+          sent_at?: string
+          delivered_at?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string | null
+          dairy_unit_id?: string | null
+          whatsapp_number?: string
+          message_type?: string
+          parameter_id?: string | null
+          message_content?: string
+          status?: string
+          error_message?: string | null
+          sent_at?: string
+          delivered_at?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_logs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_logs_dairy_unit_id_fkey"
+            columns: ["dairy_unit_id"]
+            isOneToOne: false
+            referencedRelation: "dairy_units"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_logs_parameter_id_fkey"
+            columns: ["parameter_id"]
+            isOneToOne: false
+            referencedRelation: "statutory_parameters"
             referencedColumns: ["id"]
           }
         ]

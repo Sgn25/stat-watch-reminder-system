@@ -4,13 +4,13 @@ const dotenv=require("dotenv")
 dotenv.config()
 
 //make a .env file and add screat keys into this file
-//for authentication 
+//for authentication use JWT package
 
 const pool=new Pool({
-user: 'postgres', // user:process.env.userName
-  host: 'host_address', // user:process.env.host
-  database: 'database_name',
-  password: 'password',
+user: 'postgres', 
+  host: '192.168.106.102', 
+  database: 'statmonitor',
+  password: 'Milma@123',
   port: 5432,
 
 
