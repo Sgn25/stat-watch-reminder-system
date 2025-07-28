@@ -7,13 +7,11 @@ dotenv.config()
 //for authentication use JWT package
 
 const pool=new Pool({
-user: 'postgres', 
-  host: '192.168.106.102', 
-  database: 'statmonitor',
-  password: 'Milma@123',
-  port: 5432,
-
-
+user: "postgres", 
+  host: "192.168.106.102", 
+  database: "stat_monitor",
+  password: "Milma@123",
+  port: "5432",
 })
 
 pool.connect((err,client,release)=>{

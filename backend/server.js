@@ -1,6 +1,9 @@
 const express=require("express");
 const pool = require("./config/db");
 const userRoute=require('./routes/userRoute.js')
+const parameterRoute=require('./routes/parameterRoute.js')
+const categoryRoute=require('./routes/categoryRoute.js')
+const unitRoute=require('./routes/unitRoute.js')
 const cors=require("cors")
 const cron=require("node-cron")
 
@@ -9,7 +12,10 @@ const cron=require("node-cron")
 const app=express();
 app.use(express.json())
 app.use(cors())
-app.use('/get',userRoute)
+app.use('/api',userRoute)
+app.use('/api',parameterRoute)
+app.use('/api',categoryRoute)
+app.use('/api',unitRoute)
 
 
 
