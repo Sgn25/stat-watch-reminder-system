@@ -23,6 +23,7 @@ exports.registerUser=async(req,res)=>{
         `
         INSERT INTO usermaster (username,useremail,password,unitid) VALUES ($1,$2,$3,$4)
         `
+        console.log("user registed successfully")
         const result=await pool.query(query,[username,useremail,hashPassword,unitid])
         res.status(201).json({
             message:"User created successfully",

@@ -4,8 +4,10 @@ const userRoute=require('./routes/userRoute.js')
 const parameterRoute=require('./routes/parameterRoute.js')
 const categoryRoute=require('./routes/categoryRoute.js')
 const unitRoute=require('./routes/unitRoute.js')
+const reminderRoute=require('./routes/reminderRoute.js')
 const cors=require("cors")
-const cron=require("node-cron")
+const cron=require("node-cron");
+const sendMail = require("./controller/nodeEmailController.js");
 
 
 
@@ -16,6 +18,7 @@ app.use('/api',userRoute)
 app.use('/api',parameterRoute)
 app.use('/api',categoryRoute)
 app.use('/api',unitRoute)
+app.use('/api',reminderRoute)
 
 
 
@@ -23,9 +26,10 @@ app.listen(5000,()=>{
     console.log("server is running on port 5000");
 })
 
-cron.schedule('* * * * *',()=>{
+ cron.schedule('* * * * *', async()=>{
     console.log('running a task every minute')
-    //you can put your task here
+    await sendMail()
+    
 })
 
 
