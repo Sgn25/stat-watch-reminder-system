@@ -10,10 +10,10 @@ dotenv.config();
 
 //get method
 exports.registerUser=async(req,res)=>{
-    const {username,email,password}=req.body; //change the user details according to your user check the profile table you make
+    const {username,useremail,password,unitid}=req.body; 
     try {
         const hashPassword=await bcrypt.hash(password,10);
-        const alreadyEmailFound=await pool.query(`SELECT * FROM profiles WHERE email=$1`,[email])
+        const alreadyEmailFound=await pool.query(`SELECT * FROM usermaster WHERE useremail=$1`,[useremail])
         if(alreadyEmailFound.rows.length>0){
             return res.status(404).json({
                 message:"Email already exists"
@@ -21,9 +21,10 @@ exports.registerUser=async(req,res)=>{
         }
         const query=
         `
-        INSERT INTO profiles (username,email,password) VALUES ($1,$2,$3)
+        INSERT INTO usermaster (username,useremail,password,unitid) VALUES ($1,$2,$3,$4)
         `
-        const result=await pool.query(query,[username,email,hashPassword])
+        console.log("user registed successfully")
+        const result=await pool.query(query,[username,useremail,hashPassword,unitid])
         res.status(201).json({
             message:"User created successfully",
         })
@@ -40,13 +41,13 @@ exports.registerUser=async(req,res)=>{
 
 
 exports.loginUser=async(req,res)=>{
-    const {email,password}=req.body;
+    const {useremail,password}=req.body;
     try {
         const query=
         `
-        SELECT * FROM profiles WHERE email=$1
+        SELECT * FROM usermaster WHERE useremail=$1
         `
-        const result=await pool.query(query,[email])
+        const result=await pool.query(query,[useremail])
 
         if(result.rows.length===0){
             return res.status(404).json({
@@ -66,7 +67,11 @@ exports.loginUser=async(req,res)=>{
         res.status(200).json({
             message:"Login Successfull",
             token:token,
-            user:user.email
+            user: {
+               username:user.username,
+               useremail: user.useremail,
+               userunit:user.unitid
+            }
         })
 
         
